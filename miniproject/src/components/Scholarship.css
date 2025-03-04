@@ -1,0 +1,169 @@
+/* Scholarship Header */
+.scholarship-header .header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+/* Push the tab buttons all the way to the right */
+.tab-buttons {
+  display: flex;
+  gap: 2rem; /* Increased space between buttons */
+  margin-left: auto; /* This pushes the buttons to the right */
+  margin-right: 2rem; /* Right margin for some spacing from the edge */
+}
+
+.tab-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-weight: 500;
+}
+
+.tab-button.active {
+  background-color: rgba(255, 215, 0, 0.3);
+  font-weight: bold;
+}
+
+.tab-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Make sure the header has appropriate spacing */
+.dashboard-header.scholarship-header {
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Scholarship Container */
+.scholarship-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: calc(100% - 2rem); /* Account for padding */
+  max-height: calc(100vh - 190px); /* Adjust based on header heights */
+  overflow-y: auto;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3); /* Semi-transparent background */
+  border-radius: 8px;
+  margin: 0 1rem 1rem 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom scrollbar for the scholarship container */
+.scholarship-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scholarship-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.scholarship-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.scholarship-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Scholarship Card */
+.scholarship-card {
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  padding: 1.5rem;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.scholarship-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.scholarship-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.scholarship-header h3 {
+  margin: 0;
+  color: #FFD700;
+  font-size: 1.25rem;
+}
+
+.scholarship-amount {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #4CAF50;
+}
+
+.scholarship-provider {
+  color: #aaa;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.scholarship-details {
+  margin-bottom: 1.5rem;
+}
+
+.scholarship-details p {
+  margin: 0.5rem 0;
+  color: #ddd;
+}
+
+.deadline {
+  color: #FF5722 !important;
+  font-weight: 500;
+}
+
+.scholarship-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.apply-button, .details-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.apply-button {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.details-button {
+  background-color: transparent;
+  border: 1px solid #aaa;
+  color: #ddd;
+}
+
+.apply-button:hover {
+  background-color: #3e8e41;
+}
+
+.details-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Make sure the nav-item.active is styled correctly */
+.nav-item.active {
+  background: #333;
+  border-left: 3px solid #FFD700;
+}

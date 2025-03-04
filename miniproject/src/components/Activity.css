@@ -1,0 +1,846 @@
+body {
+    margin: 0;
+    background: radial-gradient(circle, rgba(237,231,234,1) 1%, rgba(122,153,190,1) 100%);
+    overflow: hidden; /* Prevent body scrolling */
+  }
+  
+  /* Main Container */
+  .portal-container {
+    height: 100vh; /* Change from min-height to fixed height */
+    overflow: hidden; /* Prevent scrolling */
+  }
+  
+  /* Top Navigation */
+  .top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    height: 60px; /* Fixed height for nav */
+    box-sizing: border-box; /* Include padding in height */
+  }
+  
+  .nav-left {
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .nav-title {
+    font-weight: 600;
+  }
+  
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .search-container {
+    position: relative;
+  }
+  
+  .search-input {
+    padding: 0.5rem 2rem 0.5rem 1rem;
+    border-radius: 20px;
+    border: none;
+    background: #333;
+    color: white;
+  }
+  
+  .search-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+  }
+  
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+  }
+  
+  /* Main Layout */
+  .main-container {
+    display: flex;
+    height: calc(100vh - 60px); /* Exact height instead of min-height */
+    overflow: hidden; /* Prevent scrolling */
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    position: relative;
+    width: 250px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto; /* Allow sidebar to scroll if needed */
+  }
+  
+  .profile-brief {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 2rem;
+  }
+  
+  .avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: grey;
+  }
+  
+  .nav-menu {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 2rem;
+  }
+  
+  .nav-item1 {
+    align-self: flex-start;
+    margin-left: 1rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: white;
+  }
+  
+  .nav-item {
+    padding: 1rem 2rem;
+    color: #fff;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .menu-icon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .nav-item:hover {
+    background: #333;
+  }
+  
+  .nav-item.active {
+    background: #333;
+    position: relative;
+  }
+  
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #FF5722;
+  }
+  
+  /* Content area - containing dashboard header and main content */
+  .content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent content area scrolling */
+  }
+  
+  /* Dashboard Header - New Addition */
+  .dashboard-header {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 1rem 2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .dashboard-header h1 {
+    margin: 0;
+    font-size: 1.75rem;
+  }
+  
+  /* Main Content */
+  .main-content {
+    flex: 1;
+    padding: 1rem 2rem;
+    overflow: hidden; /* Prevent main content scrolling */
+  }
+  
+  /* Two-column layout */
+  .dashboard-content {
+    display: flex;
+    gap: 1rem;
+    height: calc(100% - 1rem); /* Ensure dashboard content uses full height */
+    overflow: hidden;
+  }
+  
+  .dashboard-column-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .dashboard-column-right {
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Card Styles */
+  .details-card {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+    flex: 1; /* Make details card expand to fill available space */
+    overflow-y: auto; /* Add internal scrolling */
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .calendar-card{
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+    margin-bottom: 1rem;
+    overflow-y: auto; /* Add internal scrolling */
+    flex: 1; /* Make both cards share the height equally */
+  }
+  .activity-card {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+    margin-bottom: 1rem;
+    overflow: hidden; /* Add internal scrolling */
+    flex: 1; /* Make both cards share the height equally */
+  }
+  
+  .activity-card {
+    margin-bottom: 0; /* Remove margin from last card */
+  }
+  
+  .card-title {
+    color: white;
+    margin-bottom: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  
+  .info-row {
+    display: flex;
+    padding: 1rem 0;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .info-row:last-child {
+    border-bottom: none;
+  }
+  
+  .info-row label {
+    width: 150px;
+    font-weight: 600;
+    color: white;
+  }
+  
+  .info-row span {
+    flex: 1;
+    color: #ddd;
+  }
+  
+  /* Calendar Styles */
+  .calendar-display {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .calendar-header {
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: bold;
+  }
+  
+  .calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .month-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .month-nav-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+    margin: 0 2px;
+  }
+  
+  .month-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .month-navigation span {
+    flex: 1;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .calendar-dates {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+  }
+  
+  .date-cell {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+  }
+  
+  .date-cell:hover:not(.empty) {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .date-cell.current {
+    background: rgba(255, 255, 255, 0.3);
+    font-weight: bold;
+  }
+  
+  .date-cell.empty {
+    cursor: default;
+  }
+  
+  /* Activity Section */
+  .progress-container {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem 0;
+  }
+  
+  .progress-circle {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .circular-chart {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  
+  .circle-bg {
+    stroke: #eee;
+    stroke-width: 3;
+  }
+  
+  .circle {
+    stroke: #000;
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  
+  .progress-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+  
+  .legend-color.completed {
+    background: #000;
+  }
+  
+  .legend-color.remaining {
+    background: #eee;
+  }
+  
+  .legend-text {
+    color: #ddd;
+    font-size: 0.9rem;
+  }
+  
+  /* ==================== */
+  /* Activity Points Styles */
+  /* ==================== */
+  
+  /* Activity Dashboard Layout */
+  .activity-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    height: 100%;
+    overflow-y: auto;
+  }
+  
+  /* Progress Card Styles */
+  .activity-progress-section {
+    width: 100%;
+  }
+  
+  .progress-card {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+  }
+  
+  .progress-indicator {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .progress-bar-container {
+    width: 100%;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #FF5722 0%, #FF9800 100%);
+    border-radius: 12px;
+    transition: width 0.5s ease-in-out;
+  }
+  
+  .progress-numbers {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: #ddd;
+  }
+  
+  /* Certificate Upload Section */
+  .certificate-upload-section {
+    width: 100%;
+  }
+  
+  .upload-card {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+  }
+  
+  .upload-description {
+    color: #ddd;
+    margin-bottom: 1.5rem;
+  }
+  
+  .upload-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.3s;
+  }
+  
+  .upload-btn:hover {
+    background: #45a049;
+  }
+  
+  /* Activity Table Section */
+  .activity-table-section {
+    width: 100%;
+    flex: 1;
+  }
+  
+  .table-card {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .table-container {
+    overflow-x: auto;
+    flex: 1;
+  }
+  
+  .activity-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: white;
+  }
+  
+  .activity-table th,
+  .activity-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .activity-table th {
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.3);
+  }
+  
+  .activity-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .view-cert-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    color: #2196F3;
+    border: 1px solid #2196F3;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .view-cert-btn:hover {
+    background: rgba(33, 150, 243, 0.1);
+  }
+  
+  .total-label {
+    text-align: right;
+    font-weight: 600;
+    color: white;
+  }
+  
+  .total-value {
+    font-weight: 600;
+    color: #FF9800;
+  }
+  
+  /* Upload Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .upload-modal {
+    background: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    color: #333;
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+  
+  .close-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+  }
+  
+  .close-btn:hover {
+    background: #f0f0f0;
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+  }
+  
+  .file-input-container {
+    margin-bottom: 1.5rem;
+  }
+  
+  .file-input {
+    display: none;
+  }
+  
+  .file-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f0f0f0;
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    justify-content: center;
+  }
+  
+  .file-label:hover {
+    background: #e0e0e0;
+    border-color: #aaa;
+  }
+  
+  .selected-files {
+    margin-bottom: 1.5rem;
+  }
+  
+  .selected-files h4 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+  
+  .file-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f9f9f9;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+  }
+  
+  .remove-file-btn {
+    background: transparent;
+    border: none;
+    color: #f44336;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+  }
+  
+  .remove-file-btn:hover {
+    background: rgba(244, 67, 54, 0.1);
+  }
+  
+  .upload-progress-container {
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+    position: relative;
+  }
+  
+  .upload-progress-bar {
+    height: 100%;
+    background: #4CAF50;
+    transition: width 0.3s;
+  }
+  
+  .upload-progress-text {
+    display: block;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #666;
+  }
+  
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-top: 1px solid #eee;
+  }
+  
+  .cancel-btn {
+    background: transparent;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .cancel-btn:hover {
+    background: #f0f0f0;
+  }
+  
+  .upload-confirm-btn {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .upload-confirm-btn:hover {
+    background: #45a049;
+  }
+  
+  .upload-confirm-btn:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+  }
+
+
+
+  /* Add these styles to your Activity.css file */
+
+/* Upload Success Message */
+.upload-success-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(76, 175, 80, 0.1);
+  border-left: 4px solid #4CAF50;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.upload-success-message span {
+  color: white;
+}
+
+/* Uploaded Files Section */
+.uploaded-files-section {
+  margin-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1.5rem;
+}
+
+.uploaded-files-title {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: white;
+  font-weight: 500;
+}
+
+.uploaded-files-table-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.uploaded-files-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: white;
+}
+
+.uploaded-files-table th,
+.uploaded-files-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.uploaded-files-table th {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-verified {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4CAF50;
+}
+
+.status-pending {
+  background: rgba(255, 152, 0, 0.2);
+  color: #FF9800;
+}
+
+.status-rejected {
+  background: rgba(244, 67, 54, 0.2);
+  color: #F44336;
+}

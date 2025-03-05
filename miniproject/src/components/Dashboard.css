@@ -1,0 +1,395 @@
+body {
+    margin: 0;
+    background: radial-gradient(circle, rgba(237,231,234,1) 1%, rgba(122,153,190,1) 100%);
+    overflow: hidden; /* Prevent body scrolling */
+  }
+  
+  /* Main Container */
+  .portal-container {
+    height: 100vh; /* Change from min-height to fixed height */
+    overflow: hidden; /* Prevent scrolling */
+  }
+  
+  /* Top Navigation */
+  .top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    height: 60px; /* Fixed height for nav */
+    box-sizing: border-box; /* Include padding in height */
+  }
+  
+  .nav-left {
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .nav-title {
+    font-weight: 600;
+  }
+  
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .search-container {
+    position: relative;
+  }
+  
+  .search-input {
+    padding: 0.5rem 2rem 0.5rem 1rem;
+    border-radius: 20px;
+    border: none;
+    background: #333;
+    color: white;
+  }
+  
+  .search-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+  }
+  
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+  }
+  
+  /* Main Layout */
+  .main-container {
+    display: flex;
+    height: calc(100vh - 60px); /* Exact height instead of min-height */
+    overflow: hidden; /* Prevent scrolling */
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    position: relative;
+    width: 250px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto; /* Allow sidebar to scroll if needed */
+  }
+  
+  .profile-brief {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 2rem;
+  }
+  
+  .avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: grey;
+  }
+  
+  .nav-menu {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 2rem;
+  }
+  
+  .nav-item1 {
+    align-self: flex-start;
+    margin-left: 1rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: white;
+  }
+  
+  .nav-item {
+    padding: 1rem 2rem;
+    color: #fff;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .menu-icon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .nav-item:hover {
+    background: #333;
+  }
+  
+  .nav-item.active {
+    background: #333;
+  }
+  
+  /* Content area - containing dashboard header and main content */
+  .content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent content area scrolling */
+  }
+  
+  /* Dashboard Header - New Addition */
+  .dashboard-header {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 1rem 2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .dashboard-header h1 {
+    margin: 0;
+    font-size: 1.75rem;
+  }
+  
+  /* Main Content */
+  .main-content {
+    flex: 1;
+    padding: 1rem 2rem;
+    overflow: hidden; /* Prevent main content scrolling */
+  }
+  
+  /* Two-column layout */
+  .dashboard-content {
+    display: flex;
+    gap: 1rem;
+    height: calc(100% - 1rem); /* Ensure dashboard content uses full height */
+    overflow: hidden;
+  }
+  
+  .dashboard-column-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .dashboard-column-right {
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Card Styles */
+  .details-card {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+    flex: 1; /* Make details card expand to fill available space */
+    overflow-y: auto; /* Add internal scrolling */
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .calendar-card{
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+    margin-bottom: 1rem;
+    overflow-y: auto; /* Add internal scrolling */
+    flex: 1; /* Make both cards share the height equally */
+  }
+  .activity-card {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: white;
+    margin-bottom: 1rem;
+    overflow: hidden; /* Add internal scrolling */
+    flex: 1; /* Make both cards share the height equally */
+  }
+  
+  .activity-card {
+    margin-bottom: 0; /* Remove margin from last card */
+  }
+  
+  .card-title {
+    color: white;
+    margin-bottom: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  
+  .info-row {
+    display: flex;
+    padding: 1rem 0;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .info-row:last-child {
+    border-bottom: none;
+  }
+  
+  .info-row label {
+    width: 150px;
+    font-weight: 600;
+    color: white;
+  }
+  
+  .info-row span {
+    flex: 1;
+    color: #ddd;
+  }
+  
+  /* Calendar Styles */
+  .calendar-display {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .calendar-header {
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: bold;
+  }
+  
+  .calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .month-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .month-nav-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+    margin: 0 2px;
+  }
+  
+  .month-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .month-navigation span {
+    flex: 1;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .calendar-dates {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+  }
+  
+  .date-cell {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+  }
+  
+  .date-cell:hover:not(.empty) {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .date-cell.current {
+    background: rgba(255, 255, 255, 0.3);
+    font-weight: bold;
+  }
+  
+  .date-cell.empty {
+    cursor: default;
+  }
+  
+  /* Activity Section */
+  .progress-container {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem 0;
+  }
+  
+  .progress-circle {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .circular-chart {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  
+  .circle-bg {
+    stroke: #eee;
+    stroke-width: 3;
+  }
+  
+  .circle {
+    stroke: #000;
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  
+  .progress-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+  
+  .legend-color.completed {
+    background: #000;
+  }
+  
+  .legend-color.remaining {
+    background: #eee;
+  }
+  
+  .legend-text {
+    color: #ddd;
+    font-size: 0.9rem;
+  }

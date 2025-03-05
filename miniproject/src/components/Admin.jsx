@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 import {
   Card,
   CardContent,
@@ -14,31 +15,67 @@ import {
   Stack,
   Modal,
   Box,
-  TextField
+  TextField,
 } from "@mui/material";
 
-const mockTeachers = [
-  { id: 1, name: "John Doe", department: "Computer Science", position: "Professor" },
-  { id: 2, name: "Jane Smith", department: "Mathematics", position: "Assistant Professor" },
+const departmentOrder = [
+  "Computer Science",
+  "Electronics",
+  "Electrical and Electronics",
+  "Biomedical",
+  "Applied Science",
+  "Mechanical",
 ];
 
-const mockStudents = [
-  { id: 101, name: "Alice Johnson", class: "CSA", activityPoints: 85 },
-  { id: 102, name: "Bob Williams", class: "CSB", activityPoints: 90 },
-];
+const classFolders = ["CSA", "CSB", "CSC", "CSBS", "ECA", "ECB", "EEE", "EB", "MECH"];
 
 const AdminDashboard = () => {
+  const [teacher, setTeachers] = useState([]);
+  const [student, setStudents] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [filteredStudents, setFilteredStudents] = useState([]);
-  const [teachers, setTeachers] = useState(mockTeachers);
-  const [students, setStudents] = useState(mockStudents);
   const [openModal, setOpenModal] = useState(false);
   const [modalType, setModalType] = useState("");
-  const [formData, setFormData] = useState({ name: "", department: "", position: "", class: "", activityPoints: "" });
+  const [formData, setFormData] = useState({
+    name: "",
+    department: "",
+    position: "",
+    class: "",
+    activityPoints: "",
+  });
 
   useEffect(() => {
-    setFilteredStudents(selectedClass ? students.filter((s) => s.class === selectedClass) : []);
-  }, [selectedClass, students]);
+    fetchTeachers();
+    fetchStudents();
+  }, []);
+
+  useEffect(() => {
+    setFilteredStudents(selectedClass ? student.filter((s) => s.class === selectedClass) : []);
+  }, [selectedClass, student]);
+
+  const fetchTeachers = async () => {
+    const { data, error } = await supabase.from("teacher").select("id, name, dept, position");
+
+    if (error) {
+      console.error("Error fetching teachers:", error);
+    } else {
+      data.sort((a, b) => departmentOrder.indexOf(a.dept) - departmentOrder.indexOf(b.dept));
+      setTeachers(data);
+    }
+  };
+
+  const fetchStudents = async () => {
+    const { data, error } = await supabase
+  .from("teacher")
+  .select("id,name, dept, position");
+
+
+    if (error) {
+      console.error("Error fetching students:", error);
+    } else {
+      setStudents(data);
+    }
+  };
 
   const handleOpenModal = (type) => {
     setModalType(type);
@@ -54,13 +91,16 @@ const AdminDashboard = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleAdd = () => {
-    if (modalType === "teacher") {
-      setTeachers([...teachers, { id: teachers.length + 1, name: formData.name, department: formData.department, position: formData.position }]);
+  const handleAdd = async () => {
+    const table = modalType === "teacher" ? "teacher" : "student";
+    const { error } = await supabase.from(table).insert([formData]);
+    if (error) {
+      console.error("Error adding data:", error);
     } else {
-      setStudents([...students, { id: students.length + 101, name: formData.name, class: formData.class, activityPoints: Number(formData.activityPoints) }]);
+      if (modalType === "teacher") fetchTeachers();
+      else fetchStudents();
+      handleCloseModal();
     }
-    handleCloseModal();
   };
 
   return (
@@ -91,23 +131,12 @@ const AdminDashboard = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {teachers.map((teacher) => (
+                {teacher.map((teacher) => (
                   <TableRow key={teacher.id}>
                     <TableCell>{teacher.id}</TableCell>
                     <TableCell>{teacher.name}</TableCell>
                     <TableCell>{teacher.department}</TableCell>
                     <TableCell>{teacher.position}</TableCell>
-                    <TableCell>
-                            <Stack direction="row" spacing={1}>
-                              <Button variant="contained" color="primary" onClick={() => alert(`Reset password for ${teacher.name}`)}
-                              >
-                                Reset Password
-                              </Button>
-                              <Button variant="outlined" color="error" onClick={() => alert('Remove ${teacher.name}')}>
-                                Remove
-                              </Button>
-                            </Stack>
-                          </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -130,7 +159,7 @@ const AdminDashboard = () => {
 
           <Typography>Select Class:</Typography>
           <Stack direction="row" spacing={2} sx={{ mt: 2, mb: 3 }}>
-            {[...new Set(students.map((s) => s.class))].map((cls) => (
+            {classFolders.map((cls) => (
               <Button key={cls} variant={selectedClass === cls ? "contained" : "outlined"} onClick={() => setSelectedClass(cls)}>
                 {cls}
               </Button>
@@ -153,16 +182,6 @@ const AdminDashboard = () => {
                       <TableCell>{student.id}</TableCell>
                       <TableCell>{student.name}</TableCell>
                       <TableCell>{student.activityPoints}</TableCell>
-                      <TableCell>
-                            <Stack direction="row" spacing={1}>
-                              <Button variant="contained" color="primary" onClick={() => alert('Reset password for ${student.name}')}>
-                                Reset Password
-                              </Button>
-                              <Button variant="outlined" color="error" onClick={() => alert('Remove ${student.name}')}>
-                                Remove
-                              </Button>
-                            </Stack>
-                          </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -171,30 +190,6 @@ const AdminDashboard = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Modal */}
-      <Modal open={openModal} onClose={handleCloseModal}>
-        <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 400, bgcolor: "background.paper", p: 4, boxShadow: 24, borderRadius: 2 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Add {modalType === "teacher" ? "Teacher" : "Student"}
-          </Typography>
-          <TextField fullWidth label="Name" name="name" value={formData.name} onChange={handleInputChange} sx={{ mb: 2 }} />
-          {modalType === "teacher" ? (
-            <>
-              <TextField fullWidth label="Department" name="department" value={formData.department} onChange={handleInputChange} sx={{ mb: 2 }} />
-              <TextField fullWidth label="Position" name="position" value={formData.position} onChange={handleInputChange} sx={{ mb: 2 }} />
-            </>
-          ) : (
-            <>
-              <TextField fullWidth label="Class" name="class" value={formData.class} onChange={handleInputChange} sx={{ mb: 2 }} />
-              <TextField fullWidth label="Activity Points" name="activityPoints" value={formData.activityPoints} onChange={handleInputChange} sx={{ mb: 2 }} />
-            </>
-          )}
-          <Button variant="contained" color="primary" onClick={handleAdd}>
-            Add
-          </Button>
-        </Box>
-      </Modal>
     </div>
   );
 };

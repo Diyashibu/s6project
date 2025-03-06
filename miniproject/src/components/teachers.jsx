@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { supabase } from "../supabase";
 import StudentModal from "./StudentModal";
 import { Table, TableHead, TableRow, TableCell, TableBody, Badge, Dialog, DialogTitle, DialogContent, Button, Tabs, Tab } from "@mui/material";
 

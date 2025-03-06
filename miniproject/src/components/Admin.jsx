@@ -13,9 +13,12 @@ import {
   Paper,
   Typography,
   Stack,
-  Modal,
-  Box,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   TextField,
+  MenuItem,
 } from "@mui/material";
 
 const departmentOrder = [
@@ -34,16 +37,21 @@ const AdminDashboard = () => {
   const [student, setStudents] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [filteredStudents, setFilteredStudents] = useState([]);
-  const [openModal, setOpenModal] = useState(false);
-  const [modalType, setModalType] = useState("");
-  const [formData, setFormData] = useState({
-    name: "",
-    department: "",
-    position: "",
-    class: "",
-    activityPoints: "",
-  });
-
+  const [selectedTeachers, setSelectedTeachers] = useState([]);
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [openTeacherModal, setOpenTeacherModal] = useState(false);
+  const [openStudentModal, setOpenStudentModal] = useState(false);
+  const [newTeacher, setNewTeacher] = useState({ name: "", dept: "", position: "", password: "", dob: "", id: "" });
+  const [newStudent, setNewStudent] = useState({ id: "", name: "", password: "", total_activity_point: "", class: "", dob: "" });
+  const [openPasswordModal, setOpenPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({ id: "", password: "", confirmPassword: "", type: "" });
+  const [openRemoveModal, setOpenRemoveModal] = useState(false);
+  const [removeData, setRemoveData] = useState({ id: "", type: "" });
+  const departments = [
+    "Computer Science", "Electronics", "Electrical and Electronics", "Biomedical", "Applied Science", "Mechanical"
+  ];
+  
+  const classes = ["CSA", "CSB", "CSC", "CSBS", "ECA", "ECB", "EEE", "EB", "MECH"];
   useEffect(() => {
     fetchTeachers();
     fetchStudents();
@@ -65,10 +73,7 @@ const AdminDashboard = () => {
   };
 
   const fetchStudents = async () => {
-    const { data, error } = await supabase
-  .from("teacher")
-  .select("id,name, dept, position");
-
+    const { data, error } = await supabase.from("student").select("id, name, class, total_activity_point");
 
     if (error) {
       console.error("Error fetching students:", error);
@@ -77,30 +82,64 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleOpenModal = (type) => {
-    setModalType(type);
-    setOpenModal(true);
-    setFormData({ name: "", department: "", position: "", class: "", activityPoints: "" });
-  };
-
-  const handleCloseModal = () => {
-    setOpenModal(false);
-  };
-
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleAdd = async () => {
-    const table = modalType === "teacher" ? "teacher" : "student";
-    const { error } = await supabase.from(table).insert([formData]);
-    if (error) {
-      console.error("Error adding data:", error);
-    } else {
-      if (modalType === "teacher") fetchTeachers();
-      else fetchStudents();
-      handleCloseModal();
+  const handleResetPassword = async () => {
+    if (passwordData.password !== passwordData.confirmPassword) {
+      alert("Passwords do not match!");
+      return;
     }
+    
+    const table = passwordData.type === "teacher" ? "teacher" : "student";
+    const { error } = await supabase.from(table).update({ password: passwordData.password }).eq("id", passwordData.id);
+    if (!error) {
+      alert("Password updated successfully!");
+      setOpenPasswordModal(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    const table = removeData.type === "teacher" ? "teacher" : "student";
+    const { error } = await supabase.from(table).delete().eq("id", removeData.id);
+    if (!error) {
+      alert("Removed successfully!");
+      removeData.type === "teacher" ? fetchTeachers() : fetchStudents();
+      setOpenRemoveModal(false);
+    }
+  };
+  const toggleTeacherSelection = (teacher) => {
+    setSelectedTeachers((prevSelected) =>
+      prevSelected.some((t) => t.id === teacher.id)
+        ? prevSelected.filter((t) => t.id !== teacher.id)
+        : [...prevSelected, teacher]
+    );
+  };
+
+  // Handle selecting/deselecting students
+  const toggleStudentSelection = (student) => {
+    setSelectedStudents((prevSelected) =>
+      prevSelected.some((s) => s.id === student.id)
+        ? prevSelected.filter((s) => s.id !== student.id)
+        : [...prevSelected, student]
+    );
+  };
+
+  // Print selected items to console
+  const printSelectedItems = () => {
+    console.log("Selected Teachers:", selectedTeachers);
+    console.log("Selected Students:", selectedStudents);
+  };
+
+  const handleAddTeacher = async () => {
+    const { error } = await supabase.from("teacher").insert([newTeacher]);
+    if (error) console.error("Error adding teacher:", error);
+    else fetchTeachers();
+    setOpenTeacherModal(false);
+  };
+
+  const handleAddStudent = async () => {
+    const { error } = await supabase.from("student").insert([newStudent]);
+    if (error) console.error("Error adding student:", error);
+    else fetchStudents();
+    setOpenStudentModal(false);
   };
 
   return (
@@ -113,12 +152,8 @@ const AdminDashboard = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6" fontWeight="bold">
-              Teachers
-            </Typography>
-            <Button variant="contained" color="primary" onClick={() => handleOpenModal("teacher")}>
-              Add Teacher
-            </Button>
+            <Typography variant="h6" fontWeight="bold">Teachers</Typography>
+            <Button variant="contained" onClick={() => setOpenTeacherModal(true)}>Add Teacher</Button>
           </Stack>
           <TableContainer component={Paper}>
             <Table>
@@ -131,12 +166,16 @@ const AdminDashboard = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {teacher.map((teacher) => (
-                  <TableRow key={teacher.id}>
-                    <TableCell>{teacher.id}</TableCell>
-                    <TableCell>{teacher.name}</TableCell>
-                    <TableCell>{teacher.department}</TableCell>
-                    <TableCell>{teacher.position}</TableCell>
+                {teacher.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell>{t.id}</TableCell>
+                    <TableCell>{t.name}</TableCell>
+                    <TableCell>{t.dept}</TableCell>
+                    <TableCell>{t.position}</TableCell>
+                    <TableCell>
+                      <Button size="small" onClick={() => setPasswordData({ id: t.id, type: "teacher", password: "", confirmPassword: "" }) || setOpenPasswordModal(true)}>Reset Password</Button>
+                      <Button size="small" color="error" onClick={() => setRemoveData({ id: t.id, type: "teacher" }) || setOpenRemoveModal(true)}>Remove</Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -152,9 +191,7 @@ const AdminDashboard = () => {
             <Typography variant="h6" fontWeight="bold">
               Students
             </Typography>
-            <Button variant="contained" color="primary" onClick={() => handleOpenModal("student")}>
-              Add Student
-            </Button>
+            <Button variant="contained" onClick={() => setOpenStudentModal(true)}>Add Student</Button>
           </Stack>
 
           <Typography>Select Class:</Typography>
@@ -177,11 +214,22 @@ const AdminDashboard = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredStudents.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell>{student.id}</TableCell>
-                      <TableCell>{student.name}</TableCell>
-                      <TableCell>{student.activityPoints}</TableCell>
+                  {filteredStudents.map((s) => (
+                    <TableRow
+                      key={s.id}
+                      onClick={() => toggleStudentSelection(s)}
+                      style={{
+                        cursor: "pointer",
+                        backgroundColor: selectedStudents.some((st) => st.id === s.id) ? "#d3e3fc" : "inherit",
+                      }}
+                    >
+                      <TableCell>{s.id}</TableCell>
+                      <TableCell>{s.name}</TableCell>
+                      <TableCell>{s.total_activity_point}</TableCell>
+                      <TableCell>
+                      <Button size="small" onClick={() => setPasswordData({ id: s.id, type: "student", password: "", confirmPassword: "" }) || setOpenPasswordModal(true)}>Reset Password</Button>
+                      <Button size="small" color="error" onClick={() => setRemoveData({ id: s.id, type: "student" }) || setOpenRemoveModal(true)}>Remove</Button>
+                    </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -190,8 +238,74 @@ const AdminDashboard = () => {
           )}
         </CardContent>
       </Card>
+
+
+      <Dialog open={openTeacherModal} onClose={() => setOpenTeacherModal(false)}>
+        <DialogTitle>Add Teacher</DialogTitle>
+        <DialogContent>
+          <TextField label="Name" fullWidth margin="dense" onChange={(e) => setNewTeacher({ ...newTeacher, name: e.target.value })} />
+          <TextField label="Department" select fullWidth margin="dense" onChange={(e) => setNewTeacher({ ...newTeacher, dept: e.target.value })}>
+            {departments.map((dept) => (
+              <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+            ))}
+          </TextField>
+          <TextField label="Position" fullWidth margin="dense" onChange={(e) => setNewTeacher({ ...newTeacher, position: e.target.value })} />
+          <TextField label="Password" type="password" fullWidth margin="dense" onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })} />
+          <TextField label="Date of Birth" type="date" fullWidth margin="dense" InputLabelProps={{ shrink: true }} onChange={(e) => setNewTeacher({ ...newTeacher, dob: e.target.value })} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenTeacherModal(false)}>Cancel</Button>
+          <Button onClick={handleAddTeacher} variant="contained">Add</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Student Modal */}
+      <Dialog open={openStudentModal} onClose={() => setOpenStudentModal(false)}>
+        <DialogTitle>Add Student</DialogTitle>
+        <DialogContent>
+          <TextField label="ID" fullWidth margin="dense" onChange={(e) => setNewStudent({ ...newStudent, id: e.target.value })} />
+          <TextField label="Name" fullWidth margin="dense" onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })} />
+          <TextField label="Class" select fullWidth margin="dense" onChange={(e) => setNewStudent({ ...newStudent, class: e.target.value })}>
+            {classes.map((cls) => (
+              <MenuItem key={cls} value={cls}>{cls}</MenuItem>
+            ))}
+          </TextField>
+          <TextField label="Password" type="password" fullWidth margin="dense" onChange={(e) => setNewStudent({ ...newStudent, password: e.target.value })} />
+          <TextField label="Total Activity Points" fullWidth margin="dense" onChange={(e) => setNewStudent({ ...newStudent, total_activity_point: e.target.value })} />
+          <TextField label="Date of Birth" type="date" fullWidth margin="dense" InputLabelProps={{ shrink: true }} onChange={(e) => setNewStudent({ ...newStudent, dob: e.target.value })} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenStudentModal(false)}>Cancel</Button>
+          <Button onClick={handleAddStudent} variant="contained">Add</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openPasswordModal} onClose={() => setOpenPasswordModal(false)}>
+        <DialogTitle>Reset Password</DialogTitle>
+        <DialogContent>
+          <TextField label="New Password" type="password" fullWidth margin="dense" onChange={(e) => setPasswordData({ ...passwordData, password: e.target.value })} />
+          <TextField label="Confirm Password" type="password" fullWidth margin="dense" onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPasswordModal(false)}>Cancel</Button>
+          <Button onClick={handleResetPassword} variant="contained">Update</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Remove Confirmation Modal */}
+      <Dialog open={openRemoveModal} onClose={() => setOpenRemoveModal(false)}>
+        <DialogTitle>Confirm Removal</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to remove this {removeData.type}?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenRemoveModal(false)}>Cancel</Button>
+          <Button onClick={handleRemove} color="error" variant="contained">Remove</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
+
 
 export default AdminDashboard;

@@ -1,13 +1,35 @@
 import React, { useState } from "react";
 import { supabase } from "../supabase";
-import { 
-  Box, Button, TextField, Typography, Card, CardContent, 
-  Radio, RadioGroup, FormControlLabel, Select, MenuItem, FormControl, InputLabel, Dialog, DialogTitle, DialogContent, DialogActions 
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Dialog,
+  DialogContent,
+  DialogActions,
+  Paper,
+  Container,
+  useTheme,
+  useMediaQuery
 } from "@mui/material";
+import { School, Person } from "@mui/icons-material";
+
 import { useNavigate } from "react-router-dom";
 import bcrypt from 'bcryptjs';
 
 const AuthPage = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const navigate = useNavigate();
   const [userType, setUserType] = useState(null);
   const [showSignUp, setShowSignUp] = useState(false);
@@ -135,111 +157,433 @@ const AuthPage = () => {
   };
 
   return (
-    <Box sx={{ p: 4, display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <Container 
+      maxWidth="sm" 
+      sx={{ 
+        minHeight: "100vh", 
+        display: "flex", 
+        flexDirection: "column", 
+        alignItems: "center", 
+        justifyContent: "center",
+        py: 4
+      }}
+    >
       {!userType ? (
-        <Card sx={{ width: 400, p: 3 }}>
-          <CardContent>
-            <Typography variant="h6">Select User Type</Typography>
-            <RadioGroup row value={userType} onChange={handleUserTypeChange}>
-              <FormControlLabel value="teacher" control={<Radio />} label="Teacher" />
-              <FormControlLabel value="student" control={<Radio />} label="Student" />
-            </RadioGroup>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card sx={{ width: 400, p: 3 }}>
-      <CardContent>
-        <Typography variant="h6">{showSignUp ? "Sign Up" : "Login"}</Typography>
-        <TextField fullWidth margin="normal" label="KTU ID" name="id" value={formData.id} onChange={handleInputChange} />
-        <TextField fullWidth margin="normal" type="password" label="Password" name="password" value={formData.password} onChange={handleInputChange} />
+        // User Type Selection
+        <Paper 
+          elevation={1} 
+          sx={{ 
+            width: "100%", 
+            borderRadius: 2,
+            p: isMobile ? 3 : 5,
+            border: "1px solid #eaeaea"
+          }}
+        >
+          <Box sx={{ textAlign: "center", mb: 4 }}>
+            <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
+              Welcome
+            </Typography>
+            <Typography color="text.secondary">
+              Please select your user type to continue
+            </Typography>
+          </Box>
 
-        {showSignUp && (
-          <>
-            <TextField fullWidth margin="normal" label="Name" name="name" value={formData.name} onChange={handleInputChange} />
-            <TextField fullWidth margin="normal" type="date" label="Date of Birth" name="dob" value={formData.dob} onChange={handleInputChange} />
-            {userType === "teacher" ? (
+          <RadioGroup
+            value={userType}
+            onChange={handleUserTypeChange}
+            sx={{ mb: 3 }}
+          >
+            <Paper 
+              variant="outlined"
+              sx={{ 
+                mb: 2, 
+                borderRadius: 2,
+                borderColor: userType === "teacher" ? theme.palette.primary.main : "#eaeaea",
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  backgroundColor: 'rgba(0, 0, 0, 0.01)'
+                }
+              }}
+            >
+              <FormControlLabel
+                value="teacher"
+                control={<Radio />}
+                sx={{ 
+                  width: "100%", 
+                  m: 0,
+                  p: 2,
+                  '& .MuiFormControlLabel-label': {
+                    width: '100%'
+                  }
+                }}
+                label={
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                    <Box 
+                      sx={{ 
+                        p: 1, 
+                        borderRadius: '4px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        mr: 2 
+                      }}
+                    >
+                      <Person fontSize="large" />
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" component="div" fontWeight="medium">
+                        Teacher
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Access your teaching dashboard
+                      </Typography>
+                    </Box>
+                  </Box>
+                }
+              />
+            </Paper>
+
+            <Paper 
+              variant="outlined"
+              sx={{ 
+                borderRadius: 2,
+                borderColor: userType === "student" ? theme.palette.primary.main : "#eaeaea",
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  backgroundColor: 'rgba(0, 0, 0, 0.01)'
+                }
+              }}
+            >
+              <FormControlLabel
+                value="student"
+                control={<Radio />}
+                sx={{ 
+                  width: "100%", 
+                  m: 0,
+                  p: 2,
+                  '& .MuiFormControlLabel-label': {
+                    width: '100%'
+                  }
+                }}
+                label={
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                    <Box 
+                      sx={{ 
+                        p: 1, 
+                        borderRadius: '4px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        mr: 2 
+                      }}
+                    >
+                      <School fontSize="large" />
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" component="div" fontWeight="medium">
+                        Student
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Access your learning portal
+                      </Typography>
+                    </Box>
+                  </Box>
+                }
+              />
+            </Paper>
+          </RadioGroup>
+
+          <Button 
+            variant="contained" 
+            fullWidth 
+            onClick={() => setUserType("student")} // This would typically use the selected value
+            sx={{ 
+              mt: 2, 
+              py: 1.5,
+              bgcolor: 'black',
+              '&:hover': {
+                bgcolor: '#333'
+              },
+              borderRadius: 1,
+              textTransform: 'none',
+              fontSize: '1rem'
+            }}
+          >
+            Continue
+          </Button>
+        </Paper>
+      ) : (
+        // Login/Signup Form
+        <Paper 
+          elevation={1} 
+          sx={{ 
+            width: "100%", 
+            borderRadius: 2,
+            border: "1px solid #eaeaea",
+            overflow: 'hidden'
+          }}
+        >
+          <Box sx={{ 
+            p: 3, 
+            borderBottom: "1px solid #eaeaea", 
+            backgroundColor: '#fafafa' 
+          }}>
+            <Typography variant="h5" fontWeight="medium">
+              {showSignUp ? "Sign Up" : "Login"}
+            </Typography>
+          </Box>
+          
+          <Box sx={{ p: 3 }}>
+            <TextField 
+              fullWidth 
+              margin="normal" 
+              label="KTU ID" 
+              name="id" 
+              value={formData.id} 
+              onChange={handleInputChange}
+              variant="outlined"
+              sx={{ mb: 2 }}
+            />
+            
+            <TextField 
+              fullWidth 
+              margin="normal" 
+              type="password" 
+              label="Password" 
+              name="password" 
+              value={formData.password} 
+              onChange={handleInputChange}
+              variant="outlined"
+              sx={{ mb: 2 }}
+            />
+
+            {showSignUp && (
               <>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Department</InputLabel>
-                  <Select name="dept" value={formData.dept} onChange={handleInputChange}>
-                    {departments.map((dept) => (
-                      <MenuItem key={dept} value={dept}>{dept}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <TextField fullWidth margin="normal" label="Position" name="position" value={formData.position} onChange={handleInputChange} />
-              </>
-            ) : (
-              <>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Class</InputLabel>
-                  <Select name="class" value={formData.class} onChange={handleInputChange}>
-                    {classes.map((cls) => (
-                      <MenuItem key={cls} value={cls}>{cls}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <TextField fullWidth margin="normal" label="Total Activity Points" name="total_activity_point" value={formData.total_activity_point} onChange={handleInputChange} />
+                <TextField 
+                  fullWidth 
+                  margin="normal" 
+                  label="Name" 
+                  name="name" 
+                  value={formData.name} 
+                  onChange={handleInputChange}
+                  variant="outlined"
+                  sx={{ mb: 2 }}
+                />
+                
+                <TextField 
+                  fullWidth 
+                  margin="normal" 
+                  type="date" 
+                  label="Date of Birth" 
+                  name="dob" 
+                  value={formData.dob} 
+                  onChange={handleInputChange}
+                  variant="outlined"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ mb: 2 }}
+                />
+                
+                {userType === "teacher" ? (
+                  <>
+                    <FormControl fullWidth margin="normal" variant="outlined" sx={{ mb: 2 }}>
+                      <InputLabel>Department</InputLabel>
+                      <Select 
+                        name="dept" 
+                        value={formData.dept} 
+                        onChange={handleInputChange}
+                        label="Department"
+                      >
+                        {departments.map((dept) => (
+                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    <TextField 
+                      fullWidth 
+                      margin="normal" 
+                      label="Position" 
+                      name="position" 
+                      value={formData.position} 
+                      onChange={handleInputChange}
+                      variant="outlined"
+                      sx={{ mb: 2 }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <FormControl fullWidth margin="normal" variant="outlined" sx={{ mb: 2 }}>
+                      <InputLabel>Class</InputLabel>
+                      <Select 
+                        name="class" 
+                        value={formData.class} 
+                        onChange={handleInputChange}
+                        label="Class"
+                      >
+                        {classes.map((cls) => (
+                          <MenuItem key={cls} value={cls}>{cls}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    <TextField 
+                      fullWidth 
+                      margin="normal" 
+                      label="Total Activity Points" 
+                      name="total_activity_point" 
+                      value={formData.total_activity_point} 
+                      onChange={handleInputChange}
+                      variant="outlined"
+                      sx={{ mb: 2 }}
+                    />
+                  </>
+                )}
               </>
             )}
-          </>
-        )}
 
-        <Button
-          variant="contained"
-          color="primary"
-          fullWidth
-          sx={{ mt: 2 }}
-          onClick={showSignUp ? handleSignUp : handleLogin}
-          disabled={loading}
-        >
-          {loading ? "Processing..." : showSignUp ? "Sign Up" : "Login"}
-        </Button>
+            <Button
+              variant="contained"
+              fullWidth
+              sx={{ 
+                mt: 2, 
+                py: 1.5,
+                bgcolor: 'black',
+                '&:hover': {
+                  bgcolor: '#333'
+                },
+                borderRadius: 1,
+                textTransform: 'none',
+                fontSize: '1rem'
+              }}
+              onClick={showSignUp ? handleSignUp : handleLogin}
+              disabled={loading}
+            >
+              {loading ? "Processing..." : showSignUp ? "Sign Up" : "Login"}
+            </Button>
 
-        <Typography variant="body2" sx={{ mt: 2, cursor: "pointer" }} onClick={() => setShowSignUp(!showSignUp)}>
-          {showSignUp ? "Already have an account? Login" : "Don't have an account? Sign Up"}
-        </Typography>
-
-        
-        <Typography 
-  variant="body2" 
-  sx={{ mt: 1, cursor: "pointer", color: "blue" }} 
-  onClick={() => setShowForgotPassword(true)} // ✅ Fixes the missing click event
->
-  Forgot Password??
-</Typography>
-        
-      </CardContent>
-    </Card>
-
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Typography 
+                variant="body2" 
+                sx={{ cursor: "pointer", display: 'block', mb: 1 }} 
+                onClick={() => setShowSignUp(!showSignUp)}
+              >
+                {showSignUp ? "Already have an account? Login" : "Don't have an account? Sign Up"}
+              </Typography>
+              
+              <Typography 
+                variant="body2" 
+                sx={{ cursor: "pointer", color: theme.palette.primary.main }} 
+                onClick={() => setShowForgotPassword(true)}
+              >
+                Forgot Password?
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
       )}
-     
 
-      
-
-<Dialog open={showForgotPassword} onClose={() => setShowForgotPassword(false)}>
-  
-  <DialogContent>
-    {resetStage === "verify" ? (
-      <>
-        <TextField fullWidth margin="normal" label="KTU ID" name="id" value={resetData.id} onChange={handleResetChange} />
-        <TextField fullWidth margin="normal" type="date" label="Date of Birth" name="dob" value={resetData.dob} onChange={handleResetChange} />
-        <Button onClick={handleForgotPassword} disabled={loading} sx={{ mt: 2 }}>Verify</Button>
-      </>
-    ) : (
-      <>
-        <TextField fullWidth margin="normal" type="password" label="New Password" name="newPassword" value={resetData.newPassword} onChange={handleResetChange} />
-        <TextField fullWidth margin="normal" type="password" label="Confirm Password" name="confirmPassword" value={resetData.confirmPassword} onChange={handleResetChange} />
-        <Button onClick={handleResetPassword} disabled={loading} sx={{ mt: 2 }}>Reset Password</Button>
-      </>
-    )}
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setShowForgotPassword(false)} color="secondary">Close</Button>
-  </DialogActions>
-</Dialog>
-
-    </Box>
+      {/* Forgot Password Dialog */}
+      <Dialog 
+        open={showForgotPassword} 
+        onClose={() => setShowForgotPassword(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <Box sx={{ 
+          p: 3, 
+          borderBottom: "1px solid #eaeaea", 
+          backgroundColor: '#fafafa' 
+        }}>
+          <Typography variant="h6">
+            {resetStage === "verify" ? "Verify Account" : "Reset Password"}
+          </Typography>
+        </Box>
+        
+        <DialogContent sx={{ p: 3 }}>
+          {resetStage === "verify" ? (
+            <>
+              <TextField 
+                fullWidth 
+                margin="normal" 
+                label="KTU ID" 
+                name="id" 
+                value={resetData.id} 
+                onChange={handleResetChange}
+                variant="outlined"
+                sx={{ mb: 2 }}
+              />
+              <TextField 
+                fullWidth 
+                margin="normal" 
+                type="date" 
+                label="Date of Birth" 
+                name="dob" 
+                value={resetData.dob} 
+                onChange={handleResetChange}
+                InputLabelProps={{ shrink: true }}
+                variant="outlined"
+                sx={{ mb: 2 }}
+              />
+            </>
+          ) : (
+            <>
+              <TextField 
+                fullWidth 
+                margin="normal" 
+                type="password" 
+                label="New Password" 
+                name="newPassword" 
+                value={resetData.newPassword} 
+                onChange={handleResetChange}
+                variant="outlined"
+                sx={{ mb: 2 }}
+              />
+              <TextField 
+                fullWidth 
+                margin="normal" 
+                type="password" 
+                label="Confirm Password" 
+                name="confirmPassword" 
+                value={resetData.confirmPassword} 
+                onChange={handleResetChange}
+                variant="outlined"
+                sx={{ mb: 2 }}
+              />
+            </>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button 
+            onClick={() => setShowForgotPassword(false)} 
+            variant="outlined"
+            sx={{ borderRadius: 1 }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={resetStage === "verify" ? handleForgotPassword : handleResetPassword} 
+            variant="contained"
+            disabled={loading}
+            sx={{ 
+              bgcolor: 'black',
+              '&:hover': {
+                bgcolor: '#333'
+              },
+              borderRadius: 1
+            }}
+          >
+            {loading ? "Processing..." : resetStage === "verify" ? "Verify" : "Reset Password"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
   );
 };
 

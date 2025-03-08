@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import StudentModal from "./StudentModal";
 import { Table, TableHead, TableRow, TableCell, TableBody, Badge, Dialog, DialogTitle, DialogContent, Button, Tabs, Tab } from "@mui/material";
@@ -9,34 +9,25 @@ export default function TeacherDashboard() {
   const [activeTab, setActiveTab] = useState(0);
   
 
-const [students, setStudents] = useState([
-  {
-    id: 1,
-    ktuid: "K001",
-    name: "John Doe",
-    certificates: [
-      { name: "Math Olympiad", points: 30, verified: false, img: "/assets/certificates/cert1.png" },
-      { name: "Science Fair", points: 50, verified: true, img: "/assets/certificates/cert1.png" },
-    ],
-    scholarships: [
-      { name: "Merit Scholarship", status: "Approved", details: "Scholarship for top 5% students" },
-      { name: "Sports Scholarship", status: "Pending", details: "For students excelling in sports" },
-    ],
-    newApplications: 1,
-  },
-  {
-    id: 2,
-    ktuid: "K002",
-    name: "Jane Smith",
-    certificates: [
-      { name: "Hackathon", points: 40, verified: false, img: "/assets/certificates/cert1.png" },
-    ],
-    scholarships: [
-      { name: "Women in Tech", status: "Rejected", details: "For women excelling in technology" },
-    ],
-    newApplications: 0,
-  },
-]);
+  const [students, setStudents] = useState([]);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      const { data, error } = await supabase
+        .from("student")
+        .select("id, name, total_activity_point");
+  
+      if (error) {
+        console.error("Error fetching students:", error.message);
+      } else {
+        console.log("Fetched students:", data);
+        setStudents(data);
+      }
+    };
+    fetchStudents();
+  }, []);
+  
+  
 
   // Function to toggle verification status
   const toggleVerification = (studentId, certIndex) => {
@@ -138,18 +129,15 @@ const [students, setStudents] = useState([
         </TableHead>
         <TableBody>
           {students.map((student, index) => {
-            const totalPoints = student.certificates
-            .filter(cert => cert.verified) 
-            .reduce((sum, cert) => sum + cert.points, 0);
+            const totalPoints = student.certificates 
+            ? student.certificates.filter(cert => cert.verified).reduce((sum, cert) => sum + cert.points, 0)
+            : 0;
+          
           
             return (
-              <TableRow
-                key={student.id}
-                onClick={() => setSelectedStudent(student)}
-                style={{ cursor: "pointer" }}
-              >
+              <TableRow key={student.id} onClick={() => setSelectedStudent(student)} style={{ cursor: "pointer" }}>
                 <TableCell>{index + 1}</TableCell>
-                <TableCell>{student.ktuid}</TableCell>
+                <TableCell>{student.id}</TableCell>
                 <TableCell style={{ color: "blue", textDecoration: "underline" }}>
                   {student.name}
                 </TableCell>
@@ -177,7 +165,7 @@ const [students, setStudents] = useState([
             {students.map((student, index) => (
               <TableRow key={student.id} onClick={() => handleStudentClick(student)} style={{ cursor: "pointer" }}>
                 <TableCell>{index + 1}</TableCell>
-                <TableCell>{student.ktuid}</TableCell>
+                <TableCell>{student.id}</TableCell>
                 <TableCell style={{ color: "blue", textDecoration: "underline" }}>{student.name}</TableCell>
                 <TableCell>
                   {student.newApplications > 0 ? <Badge color="error" badgeContent={student.newApplications} /> : "No New Applications"}

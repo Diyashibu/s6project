@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home } from 'lucide-react';
 import './Scholarship.css';
 
@@ -41,6 +41,24 @@ const ScholarshipPage = () => {
   // State for the active tab
   const [activeTab, setActiveTab] = useState('');
 
+  // Load BotPress chatbot scripts dynamically
+  useEffect(() => {
+    const script1 = document.createElement("script");
+    script1.src = "https://cdn.botpress.cloud/webchat/v2.2/inject.js";
+    script1.async = true;
+    document.body.appendChild(script1);
+
+    const script2 = document.createElement("script");
+    script2.src = "https://files.bpcontent.cloud/2025/03/06/19/20250306190115-WCWOMQ1I.js";
+    script2.async = true;
+    document.body.appendChild(script2);
+
+    return () => {
+      document.body.removeChild(script1);
+      document.body.removeChild(script2);
+    };
+  }, []);
+
   // Filter scholarships based on active tab
   const filteredScholarships = activeTab === 'eligible'
     ? scholarships.filter(scholarship => !scholarship.applied) // Only non-applied scholarships
@@ -50,7 +68,7 @@ const ScholarshipPage = () => {
 
   return (
     <div className="portal-container">
-      {/* Top Navigation Bar - Same as Dashboard */}
+      {/* Top Navigation Bar */}
       <header className="top-nav">
         <div className="nav-left">
           <span className="nav-title">Student Portal</span>
@@ -66,7 +84,7 @@ const ScholarshipPage = () => {
       </header>
 
       <div className="main-container">
-        {/* Sidebar - Same as Dashboard */}
+        {/* Sidebar */}
         <aside className="sidebar">
           <a href="#" className="nav-item1">
             <Home className="menu-icon" color="white" />
@@ -100,20 +118,20 @@ const ScholarshipPage = () => {
 
         {/* Main Content Area */}
         <div className="content-area">
-          {/* Header Section - Updated to Scholarships */}
+          {/* Header Section */}
           <div className="dashboard-header scholarship-header">
             <div className="header-content">
               <h1>Scholarships</h1>
               <div className="tab-buttons">
                 <button 
                   className={`tab-button ${activeTab === 'eligible' ? 'active' : ''}`}
-                  onClick={() => setActiveTab(activeTab === 'eligible' ? '' : 'eligible')} // Toggle Eligible tab
+                  onClick={() => setActiveTab(activeTab === 'eligible' ? '' : 'eligible')} 
                 >
                   Eligible
                 </button>
                 <button 
                   className={`tab-button ${activeTab === 'applied' ? 'active' : ''}`}
-                  onClick={() => setActiveTab(activeTab === 'applied' ? '' : 'applied')} // Toggle Applied tab
+                  onClick={() => setActiveTab(activeTab === 'applied' ? '' : 'applied')} 
                 >
                   Applied
                 </button>
@@ -121,7 +139,7 @@ const ScholarshipPage = () => {
             </div>
           </div>
           
-          {/* Main Content - Scholarship list with scrolling */}
+          {/* Scholarship List */}
           <main className="main-content">
             <div className="scholarship-container">
               {filteredScholarships.map(scholarship => (

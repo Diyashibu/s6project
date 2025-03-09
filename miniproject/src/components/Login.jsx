@@ -56,8 +56,38 @@ const AuthPage = () => {
       return;
     }
 
+    // Special case for admin ID
+    if (id === "MDLAD001") {
+      // For simplicity, we're checking the admin password directly
+      // In a real application, you would still verify against the database
+      const { data: admin, error } = await supabase.from("teacher").select("*").eq("id", id).maybeSingle();
+      
+      if (error || !admin) {
+        alert("Admin credentials not found.");
+        setLoading(false);
+        return;
+      }
+      
+      const match = await bcrypt.compare(password, admin.password);
+      if (match) {
+        // Store admin information in localStorage
+        localStorage.setItem('userId', admin.id);
+        localStorage.setItem('userType', 'admin');
+        
+        alert("Admin login successful!");
+        navigate("/Admin");
+        setLoading(false);
+        return;
+      } else {
+        alert("Invalid admin password!");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Normal user login process
     const table = userType === "teacher" ? "teacher" : "student";
-    const { data: user, error } = await supabase.from(table).select("password").eq("id", id).maybeSingle();
+    const { data: user, error } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
 
     if (error || !user) {
       alert("User not found or incorrect credentials.");
@@ -67,8 +97,18 @@ const AuthPage = () => {
 
     const match = await bcrypt.compare(password, user.password);
     if (match) {
+      // Store user information in localStorage
+      localStorage.setItem('userId', user.id);
+      localStorage.setItem('userType', table);
+      
       alert("Login successful!");
-      navigate("/");
+      
+      // Redirect based on user type
+      if (userType === "teacher") {
+        navigate("/teachers");
+      } else {
+        navigate("/dashboard");
+      }
     } else {
       alert("Invalid password!");
     }
@@ -81,6 +121,13 @@ const AuthPage = () => {
     const { id, name, password, dob, dept, position, class: studentClass, total_activity_point } = formData;
     if (!id || !name || !password || !dob) {
       alert("Please fill all required fields.");
+      setLoading(false);
+      return;
+    }
+
+    // Prevent signup with the reserved admin ID
+    if (id === "MDLAD001") {
+      alert("This ID is reserved. Please use a different ID.");
       setLoading(false);
       return;
     }
@@ -116,6 +163,13 @@ const AuthPage = () => {
     const { id, dob } = resetData;
     if (!id || !dob) {
       alert("Please enter both KTU ID and Date of Birth.");
+      setLoading(false);
+      return;
+    }
+
+    // Special case for admin
+    if (id === "MDLAD001") {
+      alert("Please contact the system administrator to reset admin password.");
       setLoading(false);
       return;
     }
@@ -296,7 +350,7 @@ const AuthPage = () => {
           <Button 
             variant="contained" 
             fullWidth 
-            onClick={() => setUserType("student")} // This would typically use the selected value
+            onClick={() => setUserType(userType || "student")} // Use selected value or default to student
             sx={{ 
               mt: 2, 
               py: 1.5,
@@ -431,6 +485,7 @@ const AuthPage = () => {
                       margin="normal" 
                       label="Total Activity Points" 
                       name="total_activity_point" 
+                      type="number"
                       value={formData.total_activity_point} 
                       onChange={handleInputChange}
                       variant="outlined"

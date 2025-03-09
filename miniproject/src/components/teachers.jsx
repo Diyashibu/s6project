@@ -21,7 +21,8 @@ import {
   CardContent,
   Avatar,
   useMediaQuery,
-  useTheme
+  useTheme,
+  CircularProgress
 } from "@mui/material";
 import { LibraryBooks, EmojiEvents } from "@mui/icons-material";
 
@@ -30,100 +31,51 @@ export default function TeacherDashboard() {
   const [selectedScholarship, setSelectedScholarship] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     const fetchStudents = async () => {
-      const { data, error } = await supabase
-        .from("student")
-        .select("id, name, total_activity_point");
-  
-      if (error) {
-        console.error("Error fetching students:", error.message);
-      } else {
-        console.log("Fetched students:", data);
-        setStudents(data);
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("student")
+          .select("*");
+        
+        if (error) {
+          console.error("Error fetching students:", error.message);
+        } else {
+          console.log("Fetched students:", data);
+          setStudents(data || []);
+        }
+      } catch (err) {
+        console.error("Exception fetching students:", err);
+      } finally {
+        setLoading(false);
       }
     };
+    
     fetchStudents();
   }, []);
 
-  // Function to toggle verification status
-  const toggleVerification = (studentId, certIndex) => {
-    setStudents((prevStudents) =>
-      prevStudents.map((student) => {
-        if (student.id === studentId) {
-          return {
-            ...student,
-            certificates: student.certificates.map((cert, index) =>
-              index === certIndex ? { ...cert, verified: !cert.verified } : cert
-            ),
-          };
-        }
-        return student;
-      })
-    );
-  
-    // Ensure the modal gets the updated student object
-    setSelectedStudent((prevStudent) => {
-      if (!prevStudent) return null;
-      if (prevStudent.id === studentId) {
-        return {
-          ...prevStudent,
-          certificates: prevStudent.certificates.map((cert, index) =>
-            index === certIndex ? { ...cert, verified: !cert.verified } : cert
-          ),
-        };
-      }
-      return prevStudent;
-    });
-  };
-
-  // Function to update points only if not verified
-  const updateCertificatePoints = (studentId, certIndex, newPoints) => {
-    setStudents((prevStudents) =>
-      prevStudents.map((student) => {
-        if (student.id === studentId) {
-          return {
-            ...student,
-            certificates: student.certificates.map((cert, index) =>
-              index === certIndex && !cert.verified ? { ...cert, points: newPoints } : cert
-            ),
-          };
-        }
-        return student;
-      })
-    );
-  
-    // Ensure the modal updates the selected student's points
-    setSelectedStudent((prevStudent) => {
-      if (!prevStudent) return null;
-      if (prevStudent.id === studentId) {
-        return {
-          ...prevStudent,
-          certificates: prevStudent.certificates.map((cert, index) =>
-            index === certIndex && !cert.verified ? { ...cert, points: newPoints } : cert
-          ),
-        };
-      }
-      return prevStudent;
-    });
+  const handleTabChange = (index) => {
+    setActiveTab(index);
   };
 
   const handleStudentClick = (student) => {
-    if (activeTab === 1) {
-      setSelectedStudent(student);
-      setStudents((prev) =>
-        prev.map((s) => (s.id === student.id ? { ...s, newApplications: 0 } : s))
-      );
-    } else {
-      setSelectedStudent(student);
-    }
+    setSelectedStudent(student);
+    setIsModalOpen(true);
   };
 
-  const handleTabChange = (tabIndex) => {
-    setActiveTab(tabIndex);
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    // We keep a small delay before clearing the selected student
+    // to avoid UI flicker during the modal closing animation
+    setTimeout(() => {
+      setSelectedStudent(null);
+    }, 300);
   };
 
   return (
@@ -199,70 +151,78 @@ export default function TeacherDashboard() {
           </Typography>
         </Box>
         <Box sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead sx={{ bgcolor: '#f9f9f9' }}>
-              <TableRow>
-                <TableCell>SL NO</TableCell>
-                <TableCell>KTU ID</TableCell>
-                <TableCell>NAME</TableCell>
-                {activeTab === 0 ? (
-                  <TableCell>TOTAL ACTIVITY POINTS</TableCell>
-                ) : (
-                  <TableCell>NEW APPLICATIONS</TableCell>
-                )}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {students.map((student, index) => {
-                const totalPoints = student.certificates 
-                  ? student.certificates.filter(cert => cert.verified).reduce((sum, cert) => sum + cert.points, 0)
-                  : student.total_activity_point || 0;
-                
-                return (
-                  <TableRow key={student.id} onClick={() => handleStudentClick(student)} 
-                    sx={{ 
-                      cursor: "pointer",
-                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } 
-                    }}
-                  >
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{student.id}</TableCell>
-                    <TableCell sx={{ color: 'primary.main', fontWeight: 'medium' }}>
-                      {student.name}
-                    </TableCell>
-                    {activeTab === 0 ? (
-                      <TableCell>{totalPoints}</TableCell>
-                    ) : (
-                      <TableCell>
-                        {student.newApplications > 0 ? 
-                          <Badge color="error" badgeContent={student.newApplications} /> : 
-                          "No New Applications"}
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Table>
+              <TableHead sx={{ bgcolor: '#f9f9f9' }}>
+                <TableRow>
+                  <TableCell>SL NO</TableCell>
+                  <TableCell>KTU ID</TableCell>
+                  <TableCell>NAME</TableCell>
+                  {activeTab === 0 ? (
+                    <TableCell>TOTAL ACTIVITY POINTS</TableCell>
+                  ) : (
+                    <TableCell>NEW APPLICATIONS</TableCell>
+                  )}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {students.length > 0 ? (
+                  students.map((student, index) => (
+                    <TableRow 
+                      key={student.id} 
+                      onClick={() => handleStudentClick(student)} 
+                      sx={{ 
+                        cursor: "pointer",
+                        '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } 
+                      }}
+                    >
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{student.id}</TableCell>
+                      <TableCell sx={{ color: 'primary.main', fontWeight: 'medium' }}>
+                        {student.name}
                       </TableCell>
-                    )}
+                      {activeTab === 0 ? (
+                        <TableCell>{student.total_activity_point || 0}</TableCell>
+                      ) : (
+                        <TableCell>
+                          {student.newApplications > 0 ? 
+                            <Badge color="error" badgeContent={student.newApplications} /> : 
+                            "No New Applications"}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                      <Typography>No students found</Typography>
+                    </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </Box>
       </Paper>
 
-      {/* Student Activity Points Modal */}
-      {activeTab === 0 && selectedStudent && (
+      {/* Student Activity Points Modal - Only open when isModalOpen is true and we have a selectedStudent */}
+      {isModalOpen && selectedStudent && (
         <StudentModal
-          open={!!selectedStudent}
-          onClose={() => setSelectedStudent(null)}
+          open={isModalOpen}
+          onClose={handleModalClose}
           student={selectedStudent}
-          updateCertificatePoints={updateCertificatePoints}
-          toggleVerification={toggleVerification}
         />
       )}
 
       {/* Student Scholarships Modal */}
       {selectedStudent && activeTab === 1 && (
         <Dialog 
-          open={!!selectedStudent} 
-          onClose={() => setSelectedStudent(null)} 
+          open={isModalOpen} 
+          onClose={handleModalClose} 
           fullWidth 
           maxWidth="md"
           fullScreen={isMobile}
@@ -279,29 +239,32 @@ export default function TeacherDashboard() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {(selectedStudent.scholarships || []).map((scholarship, index) => (
-                  <TableRow 
-                    key={index} 
-                    onClick={() => setSelectedScholarship(scholarship)} 
-                    sx={{ 
-                      cursor: "pointer",
-                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
-                    }}
-                  >
-                    <TableCell>{scholarship.name}</TableCell>
-                    <TableCell>{scholarship.status}</TableCell>
-                  </TableRow>
-                ))}
-                {(!selectedStudent.scholarships || selectedStudent.scholarships.length === 0) && (
+                {(selectedStudent.scholarships || []).length > 0 ? (
+                  (selectedStudent.scholarships || []).map((scholarship, index) => (
+                    <TableRow 
+                      key={index} 
+                      onClick={() => setSelectedScholarship(scholarship)} 
+                      sx={{ 
+                        cursor: "pointer",
+                        '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
+                      }}
+                    >
+                      <TableCell>{scholarship.name}</TableCell>
+                      <TableCell>{scholarship.status}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
                   <TableRow>
-                    <TableCell colSpan={2} align="center">No scholarships found</TableCell>
+                    <TableCell colSpan={2} align="center" sx={{ py: 3 }}>
+                      <Typography>No scholarships found</Typography>
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
             <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
               <Button 
-                onClick={() => setSelectedStudent(null)} 
+                onClick={handleModalClose} 
                 variant="contained" 
                 color="primary"
               >
@@ -329,11 +292,11 @@ export default function TeacherDashboard() {
               <strong>Status:</strong> {selectedScholarship.status}
             </Typography>
             <Typography variant="body1" paragraph>
-              <strong>Details:</strong> {selectedScholarship.details}
+              <strong>Details:</strong> {selectedScholarship.details || 'No details available'}
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
               <Button 
-                onClick={() => setSelectedScholarship(null)} 
+                onClick={() => setSelectedScholarship(null)}
                 variant="contained" 
                 color="primary"
               >
@@ -346,7 +309,6 @@ export default function TeacherDashboard() {
     </Container>
   );
 }
-
 /*import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import StudentModal from "./StudentModal";

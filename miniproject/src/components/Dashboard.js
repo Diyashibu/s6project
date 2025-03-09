@@ -1,11 +1,54 @@
 import { Link } from 'react-router-dom';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import './Dashboard.css';
+import { supabase } from "../supabase";
 
 const StudentPortal = () => {
+  // User state
+  const [studentData, setStudentData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  useEffect(() => {
+    // Get the logged-in user's ID from local storage
+    const fetchStudentData = async () => {
+      const userId = localStorage.getItem('userId');
+      
+      if (!userId) {
+        // Redirect to login if no user ID found
+        window.location.href = '/';
+        return;
+      }
+      
+      try {
+        // Fetch student data from Supabase
+        const { data, error } = await supabase
+          .from('student')
+          .select('*')
+          .eq('id', userId)
+          .single();
+          
+        if (error) {
+          console.error('Error fetching student data:', error);
+          setLoading(false);
+          return;
+        }
+        
+        if (data) {
+          setStudentData(data);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchStudentData();
+  }, []);
   
   // Calendar navigation functions
   const prevMonth = () => {
@@ -65,6 +108,17 @@ const StudentPortal = () => {
     );
   }
 
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userType');
+    window.location.href = '/';
+  };
+
+  if (loading) {
+    return <div className="loading-indicator">Loading...</div>;
+  }
+
   return (
     <div className="portal-container">
       {/* Top Navigation Bar */}
@@ -108,7 +162,7 @@ const StudentPortal = () => {
               <Award className="menu-icon" color="#FFD700" />
               Scholarship
             </Link>
-            <Link to="#" className="nav-item">
+            <Link to="#" className="nav-item" onClick={handleLogout}>
               <LogOut className="menu-icon" color="#F44336" />
               Logout
             </Link>
@@ -132,31 +186,27 @@ const StudentPortal = () => {
                   <h2 className="card-title">Personal Details</h2>
                   <div className="info-row">
                     <label>Name:</label>
-                    <span>John Smith</span>
+                    <span>{studentData?.name || "Not available"}</span>
                   </div>
                   <div className="info-row">
                     <label>Roll Number:</label>
-                    <span>CS21B0123</span>
+                    <span>{studentData?.id || "Not available"}</span>
                   </div>
                   <div className="info-row">
                     <label>College:</label>
-                    <span>XYZ College</span>
+                    <span>Model Engineering College, Thrikkakara</span>
                   </div>
                   <div className="info-row">
-                    <label>Branch:</label>
+                    <label>Department:</label>
                     <span>Computer Science Engineering</span>
                   </div>
                   <div className="info-row">
-                    <label>Year:</label>
-                    <span>Third Year</span>
+                    <label>Class:</label>
+                    <span>{studentData?.class || "Not available"}</span>
                   </div>
                   <div className="info-row">
-                    <label>Courses:</label>
-                    <span>6</span>
-                  </div>
-                  <div className="info-row">
-                    <label>Address:</label>
-                    <span>123 College Avenue, Student Housing Block B</span>
+                    <label>Date of Birth:</label>
+                    <span>{studentData?.dob || "Not available"}</span>
                   </div>
                 </div>
               </div>
@@ -218,18 +268,21 @@ const StudentPortal = () => {
                             a 15.9155 15.9155 0 0 1 0 -31.831"
                           fill="none"
                           className="circle"
-                          strokeDasharray="75, 100"
+                          strokeDasharray={`${(studentData?.total_activity_point || 0)}, 100`}
                         />
                       </svg>
+                      <div className="percentage">
+                        {studentData?.total_activity_point || 0}%
+                      </div>
                     </div>
                     <div className="progress-legend">
                       <div className="legend-item">
                         <span className="legend-color completed"></span>
-                        <span className="legend-text">Completed (75%)</span>
+                        <span className="legend-text">Completed ({studentData?.total_activity_point || 0}%)</span>
                       </div>
                       <div className="legend-item">
                         <span className="legend-color remaining"></span>
-                        <span className="legend-text">Remaining (25%)</span>
+                        <span className="legend-text">Remaining ({100 - (studentData?.total_activity_point || 0)}%)</span>
                       </div>
                     </div>
                   </div>

@@ -1,81 +1,64 @@
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home } from 'lucide-react';
-import { supabase } from '../supabase'; // Assuming supabase is set up in a parent directory
+import { supabase } from '../supabase'; // Ensure this is correctly set up
 import './Scholarship.css';
 
 const ScholarshipPage = () => {
   // State for scholarships from database
   const [scholarships, setScholarships] = useState([]);
-  
-  // State for the active tab
   const [activeTab, setActiveTab] = useState('');
-  
-  // State for loading
   const [loading, setLoading] = useState(true);
 
   // Fetch scholarships from Supabase
   useEffect(() => {
-    const script1 = document.createElement("script");
-    script1.src = "https://cdn.botpress.cloud/webchat/v2.2/inject.js";
-    script1.async = true;
-    
-    const script2 = document.createElement("script");
-    script2.src = "https://files.bpcontent.cloud/2025/03/06/19/20250306190115-WCWOMQ1I.js";
-    script2.async = true;
-    
-    document.body.appendChild(script1);
-    document.body.appendChild(script2);
-  
-    return () => {
-      // Check if scripts still exist in DOM before removing
-      if (script1.parentNode) {
-        script1.parentNode.removeChild(script1);
-      }
-      if (script2.parentNode) {
-        script2.parentNode.removeChild(script2);
+    const fetchScholarships = async () => {
+      try {
+        const { data, error } = await supabase.from('scholarships').select('*');
+        if (error) throw error;
+        setScholarships(data || []);
+      } catch (err) {
+        console.error("Error fetching scholarships:", err);
+      } finally {
+        setLoading(false);
       }
     };
+
+    fetchScholarships();
   }, []);
+
   // Load BotPress chatbot scripts dynamically
   useEffect(() => {
     const script1 = document.createElement("script");
     script1.src = "https://cdn.botpress.cloud/webchat/v2.2/inject.js";
     script1.async = true;
-    document.body.appendChild(script1);
+    script1.onerror = () => console.error("Failed to load inject.js");
 
     const script2 = document.createElement("script");
     script2.src = "https://files.bpcontent.cloud/2025/03/06/19/20250306190115-WCWOMQ1I.js";
     script2.async = true;
+    script2.onerror = () => console.error("Failed to load chatbot script");
+
+    document.body.appendChild(script1);
     document.body.appendChild(script2);
 
     return () => {
-      document.body.removeChild(script1);
-      document.body.removeChild(script2);
+      if (script1.parentNode) script1.parentNode.removeChild(script1);
+      if (script2.parentNode) script2.parentNode.removeChild(script2);
     };
   }, []);
 
   // Filter scholarships based on active tab
   const filteredScholarships = activeTab === 'eligible'
-    ? scholarships.filter(scholarship => !scholarship.applied) // Only non-applied scholarships
+    ? (scholarships || []).filter(scholarship => !scholarship.applied)
     : activeTab === 'applied'
-      ? scholarships.filter(scholarship => scholarship.applied) // Only applied scholarships
-      : scholarships; // Show all scholarships when no tab is selected
+      ? (scholarships || []).filter(scholarship => scholarship.applied)
+      : scholarships || [];
 
   // Apply to scholarship
   const handleApply = async (id) => {
     try {
-      // In a real application, you would update both the user's applied scholarships 
-      // and the scholarship's applicants list in the database
-      
-      // For now, we'll just update the local state
-      setScholarships(scholarships.map(scholarship => 
-        scholarship.id === id ? { ...scholarship, applied: true } : scholarship
-      ));
-      
-      // Here you would add code to update the supabase database
-      // e.g., await supabase.from("user_scholarships").insert([{ user_id: currentUserId, scholarship_id: id }]);
-      
+      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: true } : sch));
       alert("Application submitted successfully!");
     } catch (error) {
       console.error("Error applying for scholarship:", error);
@@ -110,14 +93,11 @@ const ScholarshipPage = () => {
             <div className="avatar"></div>
           </div>
           <nav className="nav-menu">
-            <Link to="/" className="nav-item">
+            <Link to="/Dashboard" className="nav-item">
               <User className="menu-icon" color="#4CAF50" />
               Profile
             </Link>
-            <Link to="#" className="nav-item">
-              <MessageSquare className="menu-icon" color="#2196F3" />
-              Chatbot
-            </Link>
+            
             <Link to="/activity" className="nav-item">
               <Activity className="menu-icon" color="#FF5722" />
               Activity
@@ -126,7 +106,7 @@ const ScholarshipPage = () => {
               <Award className="menu-icon" color="#FFD700" />
               Scholarship
             </Link>
-            <Link to="#" className="nav-item">
+            <Link to="/" className="nav-item">
               <LogOut className="menu-icon" color="#F44336" />
               Logout
             </Link>

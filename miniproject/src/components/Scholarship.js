@@ -16,31 +16,27 @@ const ScholarshipPage = () => {
 
   // Fetch scholarships from Supabase
   useEffect(() => {
-    const fetchScholarships = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase.from("scholarships").select("*");
-        
-        if (error) {
-          console.error("Error fetching scholarships:", error);
-        } else {
-          // Transform data to match the expected schema if needed
-          const transformedData = data.map(scholarship => ({
-            ...scholarship,
-            applied: scholarship.applied || false // Ensure applied property exists
-          }));
-          setScholarships(transformedData);
-        }
-      } catch (error) {
-        console.error("Failed to fetch scholarships:", error);
-      } finally {
-        setLoading(false);
+    const script1 = document.createElement("script");
+    script1.src = "https://cdn.botpress.cloud/webchat/v2.2/inject.js";
+    script1.async = true;
+    
+    const script2 = document.createElement("script");
+    script2.src = "https://files.bpcontent.cloud/2025/03/06/19/20250306190115-WCWOMQ1I.js";
+    script2.async = true;
+    
+    document.body.appendChild(script1);
+    document.body.appendChild(script2);
+  
+    return () => {
+      // Check if scripts still exist in DOM before removing
+      if (script1.parentNode) {
+        script1.parentNode.removeChild(script1);
+      }
+      if (script2.parentNode) {
+        script2.parentNode.removeChild(script2);
       }
     };
-
-    fetchScholarships();
   }, []);
-
   // Load BotPress chatbot scripts dynamically
   useEffect(() => {
     const script1 = document.createElement("script");

@@ -207,7 +207,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <Box sx={{ height: "100vh", overflowY: "auto", padding: "24px", maxWidth: "1800px", margin: "0 auto" }}>
+    <Box sx={{ height: "100vh",  padding: "24px", maxWidth: "1800px", margin: "0 auto" }}>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h3" fontWeight="bold" sx={{ mb: 0.5 }}>
           Admin Dashboard

@@ -104,14 +104,11 @@ const ActivityPoints = () => {
             <div className="avatar"></div>
           </div>
           <nav className="nav-menu">
-            <Link to="/" className="nav-item">
+            <Link to="/Dashboard" className="nav-item">
               <User className="menu-icon" color="#4CAF50" />
               Profile
             </Link>
-            <Link to="#" className="nav-item">
-              <MessageSquare className="menu-icon" color="#2196F3" />
-              Chatbot
-            </Link>
+            
             <Link to="/activity" className="nav-item active">
               <Activity className="menu-icon" color="#FF5722" />
               Activity
@@ -120,7 +117,7 @@ const ActivityPoints = () => {
               <Award className="menu-icon" color="#FFD700" />
               Scholarship
             </Link>
-            <Link to="#" className="nav-item">
+            <Link to="/" className="nav-item">
               <LogOut className="menu-icon" color="#F44336" />
               Logout
             </Link>

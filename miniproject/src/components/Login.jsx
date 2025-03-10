@@ -37,7 +37,17 @@ const AuthPage = () => {
   const [resetStage, setResetStage] = useState("verify");
   const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({ id: "", name: "", password: "", dept: "", position: "", dob: "", class: "", total_activity_point: "" });
+  const [formData, setFormData] = useState({ 
+    id: "", 
+    name: "", 
+    password: "", 
+    dept: "", 
+    position: "", 
+    dob: "", 
+    class: "", 
+    total_activity_point: "",
+    unique_id: "" // This will be used for teacher login only
+  });
   const [resetData, setResetData] = useState({ id: "", dob: "", newPassword: "", confirmPassword: "" });
 
   const departments = ["Computer Science", "Electronics", "Electrical", "Biomedical", "Applied Science", "Mechanical"];
@@ -46,31 +56,138 @@ const AuthPage = () => {
   const handleUserTypeChange = (event) => setUserType(event.target.value);
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleResetChange = (e) => setResetData({ ...resetData, [e.target.name]: e.target.value });
+  
+  // Verify if string is a bcrypt hash
+  const isBcryptHash = (str) => {
+    return typeof str === 'string' && str.startsWith('$2') && str.length >= 50;
+  };
 
+  // Flexible password verification that tries both direct comparison and bcrypt
+  const verifyPassword = async (inputPassword, storedPassword) => {
+    // First check if it's a direct match (plaintext passwords)
+    if (inputPassword === storedPassword) {
+      return true;
+    }
+    
+    // Check if stored password looks like a bcrypt hash
+    if (isBcryptHash(storedPassword)) {
+      // Try to verify with bcrypt
+      try {
+        return await bcrypt.compare(inputPassword, storedPassword);
+      } catch (err) {
+        console.error("Error comparing passwords:", err);
+        return false;
+      }
+    }
+    
+    return false; // No match found
+  };
+  
   const handleLogin = async () => {
     setLoading(true);
-    const { id, password } = formData;
-    if (!id || !password) {
-      alert("Please enter both KTU ID and password.");
+    const { id, password, unique_id } = formData;
+
+    // Admin shortcut - just type "123" as unique_id to access admin page
+    if (userType === "teacher" && unique_id === "123") {
+      // Store admin information in localStorage
+      localStorage.setItem('userId', 'MDLAD001');
+      localStorage.setItem('userType', 'admin');
+      
+      alert("Admin login successful!");
+      navigate("/Admin");
       setLoading(false);
       return;
     }
 
-    const table = userType === "teacher" ? "teacher" : "student";
-    const { data: user, error } = await supabase.from(table).select("password").eq("id", id).maybeSingle();
+    // Teacher login with class identifier verification
+    if (userType === "teacher") {
+      if (!id || !password || !unique_id) {
+        alert("Please enter KTU ID, password, and class unique ID.");
+        setLoading(false);
+        return;
+      }
 
-    if (error || !user) {
-      alert("User not found or incorrect credentials.");
-      setLoading(false);
-      return;
-    }
+      // First, verify the teacher exists
+      const { data: teacher, error: teacherError } = await supabase
+        .from("teacher")
+        .select("*")
+        .eq("id", id.trim())
+        .maybeSingle();
 
-    const match = await bcrypt.compare(password, user.password);
-    if (match) {
+      if (teacherError || !teacher) {
+        alert("Teacher ID not found.");
+        setLoading(false);
+        return;
+      }
+      
+      const passwordMatch = await verifyPassword(password, teacher.password);
+      if (!passwordMatch) {
+        alert("Invalid password!");
+        setLoading(false);
+        return;
+      }
+      
+      // Then verify the class unique_id
+      const { data: classData, error: classError } = await supabase
+        .from("class_identifiers")
+        .select("*")
+        .eq("unique_id", unique_id)
+        .maybeSingle();
+
+      if (classError || !classData) {
+        alert("Invalid class unique ID.");
+        setLoading(false);
+        return;
+      }
+
+      // Store user information and redirect
+      localStorage.setItem('userId', teacher.id);
+      localStorage.setItem('userType', 'teacher');
+      localStorage.setItem('classId', classData.id);
+      
       alert("Login successful!");
-      navigate("/");
-    } else {
-      alert("Invalid password!");
+      navigate("/teachers");
+      setLoading(false);
+      return;
+    }
+
+    // Student login - now using the same verification approach as teachers
+    if (userType === "student") {
+      if (!id || !password) {
+        alert("Please enter both KTU ID and password.");
+        setLoading(false);
+        return;
+      }
+
+      const { data: student, error } = await supabase
+        .from("student")
+        .select("*")
+        .eq("id", id.trim())
+        .maybeSingle();
+
+      if (error) {
+        console.error("Database error:", error);
+        alert("Error accessing database. Please try again later.");
+        setLoading(false);
+        return;
+      }
+      
+      if (!student) {
+        alert("Student not found. Please check your ID.");
+        setLoading(false);
+        return;
+      }
+
+      const passwordMatch = await verifyPassword(password, student.password);
+      if (passwordMatch) {
+        localStorage.setItem('userId', student.id);
+        localStorage.setItem('userType', 'student');
+        
+        alert("Login successful!");
+        navigate("/dashboard");
+      } else {
+        alert("Invalid password!");
+      }
     }
 
     setLoading(false);
@@ -81,6 +198,13 @@ const AuthPage = () => {
     const { id, name, password, dob, dept, position, class: studentClass, total_activity_point } = formData;
     if (!id || !name || !password || !dob) {
       alert("Please fill all required fields.");
+      setLoading(false);
+      return;
+    }
+
+    // Prevent signup with the reserved admin ID
+    if (id === "MDLAD001") {
+      alert("This ID is reserved. Please use a different ID.");
       setLoading(false);
       return;
     }
@@ -120,8 +244,15 @@ const AuthPage = () => {
       return;
     }
 
+    // Special case for admin
+    if (id === "MDLAD001") {
+      alert("Please contact the system administrator to reset admin password.");
+      setLoading(false);
+      return;
+    }
+
     const table = userType === "teacher" ? "teacher" : "student";
-    const { data: user, error } = await supabase.from(table).select("dob").eq("id", id).maybeSingle();
+    const { data: user, error } = await supabase.from(table).select("dob").eq("id", id.trim()).maybeSingle();
 
     if (error || !user || user.dob !== dob) {
       alert("Incorrect ID or Date of Birth.");
@@ -144,7 +275,7 @@ const AuthPage = () => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const table = userType === "teacher" ? "teacher" : "student";
-    const { error } = await supabase.from(table).update({ password: hashedPassword }).eq("id", id);
+    const { error } = await supabase.from(table).update({ password: hashedPassword }).eq("id", id.trim());
 
     if (error) {
       alert("Error updating password.");
@@ -296,7 +427,7 @@ const AuthPage = () => {
           <Button 
             variant="contained" 
             fullWidth 
-            onClick={() => setUserType("student")} // This would typically use the selected value
+            onClick={() => setUserType(userType || "student")} // Use selected value or default to student
             sx={{ 
               mt: 2, 
               py: 1.5,
@@ -356,6 +487,21 @@ const AuthPage = () => {
               variant="outlined"
               sx={{ mb: 2 }}
             />
+
+            {/* Class Unique ID field only for teacher login - not in signup */}
+            {!showSignUp && userType === "teacher" && (
+              <TextField 
+                fullWidth 
+                margin="normal" 
+                label="Class Unique ID" 
+                name="unique_id" 
+                value={formData.unique_id} 
+                onChange={handleInputChange}
+                variant="outlined"
+                sx={{ mb: 2 }}
+                helperText="Enter class unique ID or '123' for admin access"
+              />
+            )}
 
             {showSignUp && (
               <>
@@ -431,6 +577,7 @@ const AuthPage = () => {
                       margin="normal" 
                       label="Total Activity Points" 
                       name="total_activity_point" 
+                      type="number"
                       value={formData.total_activity_point} 
                       onChange={handleInputChange}
                       variant="outlined"

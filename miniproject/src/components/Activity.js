@@ -1,307 +1,133 @@
 import { Link } from 'react-router-dom';
-import React, { useState, useEffect } from 'react';
+import React, {useRef, useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Upload, FileText, X, CheckCircle } from 'lucide-react';
 import './Activity.css';
-import { supabase } from "../supabase";
+import { supabase } from '../supabase'; // Make sure to import your Supabase client
 
 const ActivityPoints = () => {
+  const fileInputRef = useRef(null);
+
   // For file upload
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  // State for uploaded files
+  // Empty state for uploaded files - will be populated from Supabase
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  // State for activity data
-  const [activityData, setActivityData] = useState([]);
-  // State for upload success message
+  // New state for upload success message
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
-  // State for any errors
-  const [error, setError] = useState(null);
-  // Current user ID - in a real app this would come from auth
   const [userId, setUserId] = useState(null);
-  // For progress interval tracking
-  const [progressInterval, setProgressIntervalId] = useState(null);
-  
+  // Mock activity points data
+  const activityData = [
+    { id: 1, activity: "IEEE Conference Participation", date: "2024-11-10", points: 15, certificate: "ieee_cert.pdf" },
+    { id: 2, activity: "Hackathon Winner", date: "2024-09-22", points: 25, certificate: "hackathon_cert.pdf" },
+    { id: 3, activity: "Community Service", date: "2024-10-05", points: 10, certificate: "community_cert.pdf" },
+    { id: 4, activity: "Workshop Organizer", date: "2024-08-15", points: 20, certificate: "workshop_cert.pdf" },
+    { id: 5, activity: "Research Paper Publication", date: "2024-07-30", points: 30, certificate: "research_cert.pdf" }
+  ];
+
   // Calculate total points and percentage
   const totalPointsRequired = 100;
   const earnedPoints = activityData.reduce((sum, item) => sum + item.points, 0);
   const completionPercentage = Math.min(Math.round((earnedPoints / totalPointsRequired) * 100), 100);
   
-  // Get current user when component mounts
+  // Fetch certificates from Supabase on component mount
   useEffect(() => {
-    const getCurrentUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) {
-          console.error('Error getting user:', error);
-          setUserId('dummy-user-id');
-          return;
-        }
-        
-        if (user) {
-          setUserId(user.id);
-        } else {
-          // For demo purposes
-          setUserId('dummy-user-id');
-        }
-      } catch (err) {
-        console.error('Failed to get current user:', err);
-        setUserId('dummy-user-id');
-      }
-    };
-    
-    getCurrentUser();
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setUserId(storedUserId);
+      // Call fetchCertificates with the userId
+      fetchCertificates(storedUserId);
+    } else {
+      console.error("User not authenticated");
+      // Optional redirect to login page
+    }
   }, []);
-  
-  // Fetch data when userId is available
-  useEffect(() => {
-    if (userId) {
-      fetchActivityData();
-      fetchUploadedFiles();
-    }
-  }, [userId]);
-  
-  // Cleanup progress interval on unmount
-  useEffect(() => {
-    return () => {
-      if (progressInterval) {
-        clearInterval(progressInterval);
-      }
-    };
-  }, [progressInterval]);
-  
-  // Fetch activity data from Supabase
-  const fetchActivityData = async () => {
-    if (!userId) return;
-    
+  // Function to fetch certificates from Supabase
+  const fetchCertificates = async () => {
     try {
-      // Clear any existing error
-      setError(null);
-      
+      // Fetch list of files from the certuploads bucket
       const { data, error } = await supabase
-        .from('certificates')
-        .select('certificate_id, id, certificate, activity_point, status, uploaded_at')
-        .eq('id', userId)
-        .eq('status', 'Verified'); // Only get verified certificates for activity points
+        .storage
+        .from('certuploads')
+        .list();
       
-      if (error) throw error;
-      
-      // Check if data is available
-      if (!data || data.length === 0) {
-        setActivityData([]);
+      if (error) {
+        console.error("Error fetching certificates:", error);
         return;
       }
       
-      // Format data for display
-      const formattedData = data.map((item, index) => ({
-        id: item.certificate_id,
-        activity: `Activity ${index + 1}`, // You might want to customize this based on your needs
-        date: item.uploaded_at ? new Date(item.uploaded_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        points: item.activity_point,
-        certificate: item.certificate
-      }));
-      
-      setActivityData(formattedData);
-    } catch (err) {
-      console.error('Error fetching activity data:', err);
-      setError('Failed to load activity data. Please try again later.');
-      setActivityData([]);
-    }
-  };
-  
-  // Fetch uploaded files from Supabase
-  const fetchUploadedFiles = async () => {
-    if (!userId) return;
-    
-    try {
-      // Clear any existing error
-      setError(null);
-      
-      const { data, error } = await supabase
-        .from('certificates')
-        .select('certificate_id, id, certificate, activity_point, status, uploaded_at')
-        .eq('id', userId);
-      
-      if (error) throw error;
-      
-      // Check if data is available
-      if (!data || data.length === 0) {
-        setUploadedFiles([]);
-        return;
+      if (data) {
+        // Map the data to our uploadedFiles format
+        const formattedFiles = data.map((file, index) => ({
+          id: index + 1,
+          name: file.name,
+          date: new Date(file.created_at || Date.now()).toISOString().split('T')[0],
+          status: "Pending", // Default status
+          path: file.name
+        }));
+        
+        setUploadedFiles(formattedFiles);
       }
-      
-      // Format data for display
-      const formattedFiles = data.map((item, index) => ({
-        id: item.certificate_id,
-        name: item.certificate.split('/').pop() || `Certificate ${index + 1}`, // Extract filename from path
-        date: item.uploaded_at ? new Date(item.uploaded_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        status: item.status || "Pending", // Use status from database
-        points: item.activity_point
-      }));
-      
-      setUploadedFiles(formattedFiles);
-    } catch (err) {
-      console.error('Error fetching uploaded files:', err);
-      setError('Failed to load uploaded files. Please try again later.');
-      setUploadedFiles([]);
+    } catch (error) {
+      console.error("Failed to fetch certificates:", error);
     }
   };
-  
+  /*const fetchStudentData = async () => {
+    const userId = localStorage.getItem('userId');
+    
+    if (!userId) {
+      // Redirect to login if no user ID found
+      window.location.href = '/';
+      return;
+    }
+    fetchStudentData();
+  };*/
   // Handle file selection
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setSelectedFiles((prevFiles) => [...prevFiles, ...files]);
   };
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0]; // ✅ Optional chaining added to avoid undefined error
   
-  // Handle file upload to Supabase
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) {
-      setError("No files selected");
+    if (!file) {
+      console.log("No file selected");
       return;
     }
     
-    if (!userId) {
-      setError("User not authenticated");
-      return;
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // Generate a unique file name
+    const uniqueFileName = `${Date.now()}-${file.name}`;
+    
+    const { data, error } = await supabase.storage
+      .from('certuploads')
+      .upload(uniqueFileName, file);
+
+      const { data: urlData } = supabase
+        .storage
+        .from('certuploads')
+        .getPublicUrl(uniqueFileName);
+
+    const fileUrl = urlData.publicUrl;
+
+    // Insert into 'certificates' table
+    const { error: insertError } = await supabase
+        .from('certificates')
+        .insert([{ student_id: userId, certificate: fileUrl }]);
+    
+    if (error) {
+      console.error("Upload failed:", error.message);
+    } else {
+      console.log("File uploaded successfully:", data);
     }
     
-    // Clear any previous errors
-    setError(null);
-    
-    try {
-      // Start progress simulation
-      setUploadProgress(0);
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(interval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 300);
-      
-      setProgressIntervalId(interval);
-      
-      // Check if the bucket exists
-      try {
-        const { error: bucketError } = await supabase.storage.getBucket('documents');
-        if (bucketError) {
-          console.warn('Bucket verification failed:', bucketError);
-          // Continue anyway, as the bucket might still be accessible
-        }
-      } catch (bucketErr) {
-        console.warn('Error checking bucket:', bucketErr);
-        // Continue anyway, as this might just be a permissions issue
-      }
-      
-      // Process each file
-      const uploadedCertificates = [];
-      
-      for (const file of selectedFiles) {
-        // Validate file type and size
-        const fileExt = file.name.split('.').pop().toLowerCase();
-        if (!['pdf', 'jpg', 'jpeg', 'png'].includes(fileExt)) {
-          throw new Error(`Invalid file type: ${fileExt}. Only PDF, JPG, and PNG are supported.`);
-        }
-        
-        if (file.size > 5 * 1024 * 1024) {
-          throw new Error(`File ${file.name} exceeds 5MB size limit.`);
-        }
-        
-        // Create a unique file name
-        const timestamp = new Date().getTime();
-        const filePath = `certificates/${userId}/${timestamp}_${file.name}`;
-        
-        // Upload file to Supabase Storage
-        const { data: storageData, error: storageError } = await supabase.storage
-          .from('documents')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
-        
-        if (storageError) {
-          console.error('Storage error:', storageError);
-          throw new Error(`Failed to upload ${file.name}: ${storageError.message}`);
-        }
-        
-        // Get the public URL for the uploaded file
-        const { data: urlData } = await supabase.storage
-          .from('documents')
-          .getPublicUrl(filePath);
-        
-        if (!urlData || !urlData.publicUrl) {
-          throw new Error(`Failed to get public URL for ${file.name}`);
-        }
-        
-        // Insert certificate record in the database
-        const { data, error } = await supabase
-          .from('certificates')
-          .insert([
-            { 
-              id: userId,
-              certificate: urlData.publicUrl,
-              activity_point: 10, // Default points value
-              status: 'Pending',
-              uploaded_at: new Date().toISOString()
-            }
-          ])
-          .select();
-        
-        if (error) {
-          console.error('Database insert error:', error);
-          throw new Error(`Failed to save ${file.name} record: ${error.message}`);
-        }
-        
-        if (!data || data.length === 0) {
-          throw new Error(`No data returned after inserting record for ${file.name}`);
-        }
-        
-        // Add to our list of uploaded certificates
-        uploadedCertificates.push({
-          id: data[0].certificate_id,
-          name: file.name,
-          date: new Date().toISOString().split('T')[0],
-          status: data[0].status || "Pending",
-          points: data[0].activity_point
-        });
-      }
-      
-      // Complete progress
-      clearInterval(interval);
-      setProgressIntervalId(null);
-      setUploadProgress(100);
-      
-      setTimeout(() => {
-        // Update state with new certificates
-        setUploadedFiles(prev => [...prev, ...uploadedCertificates]);
-        setUploadProgress(0);
-        setSelectedFiles([]);
-        setShowUploadModal(false);
-        
-        // Show success message
-        setShowUploadSuccess(true);
-        setTimeout(() => setShowUploadSuccess(false), 5000);
-        
-        // Refresh data
-        fetchActivityData();
-        fetchUploadedFiles();
-      }, 1000);
-      
-    } catch (err) {
-      console.error('Error uploading files:', err);
-      setError(err.message || 'Failed to upload files. Please try again.');
-      setUploadProgress(0);
-      
-      if (progressInterval) {
-        clearInterval(progressInterval);
-        setProgressIntervalId(null);
-      }
-    }
+
+  
+    console.log(file); // 🎯 File is uploaded successfully
   };
   
-  // Remove a file from the selected files list
+  
   const removeFile = (index) => {
     setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
   };
@@ -428,76 +254,77 @@ const ActivityPoints = () => {
               </div>
               
               {/* Certificate Upload Section */}
-              <div className="certificate-upload-section">
-                <div className="upload-card">
-                  <h2 className="card-title">Upload Certificates</h2>
-                  <p className="upload-description">
-                    Upload certificates for activity points verification. Supported formats: PDF, JPG, PNG (max 5MB each)
-                  </p>
-                  {/* Upload Success Message */}
-                  {showUploadSuccess && (
-                    <div className="upload-success-message">
-                      <CheckCircle size={18} color="#4CAF50" />
-                      <span>Files successfully uploaded! Waiting for verification.</span>
+<div className="certificate-upload-section">
+  <div className="upload-card">
+    <h2 className="card-title">Upload Certificates</h2>
+    <p className="upload-description">
+      Upload certificates for activity points verification. Supported formats: PDF, JPG, PNG (max 5MB each)
+    </p>
+
+    {/* Upload Success Message */}
+    {showUploadSuccess && (
+      <div className="upload-success-message">
+        <CheckCircle size={18} color="#4CAF50" />
+        <span>Files successfully uploaded! Waiting for verification.</span>
+      </div>
+    )}
+
+    {/* File Input for Upload */}
+    <input 
+      type="file"
+      accept=".pdf,.jpg,.png"
+      onChange={handleUpload}
+      style={{ display: 'none' }}
+      ref={fileInputRef}
+    />
+
+    {/* Upload Button */}
+    <button 
+      className="upload-btn" 
+      onClick={() => fileInputRef.current.click()}
+    >
+      <Upload size={18} />
+      Upload Certificates
+    </button>
+
+    {/* Uploaded Files Section - Only shown if there are files */}
+    {uploadedFiles.length > 0 && (
+      <div className="uploaded-files-section">
+        <h3 className="uploaded-files-title">Uploaded Files</h3>
+        <div className="uploaded-files-table-container">
+          <table className="uploaded-files-table">
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Upload Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {uploadedFiles.map(file => (
+                <tr key={file.id} className={`status-${file.status.toLowerCase()}`}>
+                  <td>
+                    <div className="file-info">
+                      <FileText size={16} />
+                      <span>{file.name}</span>
                     </div>
-                  )}
-                  <button 
-                    className="upload-btn" 
-                    onClick={() => setShowUploadModal(true)}
-                  >
-                    <Upload size={18} />
-                    Upload Certificates
-                  </button>
-                  
-                  {/* Uploaded Files Section */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="uploaded-files-section">
-                      <h3 className="uploaded-files-title">Uploaded Files</h3>
-                      <div className="uploaded-files-table-container">
-                        <table className="uploaded-files-table">
-                          <thead>
-                            <tr>
-                              <th>File Name</th>
-                              <th>Upload Date</th>
-                              <th>Status</th>
-                              <th>Points</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {uploadedFiles.map(file => (
-                              <tr key={file.id} className={`status-${file.status?.toLowerCase()}`}>
-                                <td>
-                                  <div className="file-info">
-                                    <FileText size={16} />
-                                    <span>{file.name}</span>
-                                  </div>
-                                </td>
-                                <td>{file.date}</td>
-                                <td>
-                                  <span className={`status-badge status-${file.status?.toLowerCase()}`}>
-                                    {file.status || "Pending"}
-                                  </span>
-                                </td>
-                                <td>{file.points}</td>
-                                <td>
-                                  <button 
-                                    className="view-cert-btn"
-                                    onClick={() => handleViewCertificate(file)}
-                                  >
-                                    <FileText size={16} />
-                                    View
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+                  </td>
+                  <td>{file.date}</td>
+                  <td>
+                    <span className={`status-badge status-${file.status.toLowerCase()}`}>
+                      {file.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+
               
               {/* Activity Points Table Section */}
               <div className="activity-table-section">
@@ -574,6 +401,7 @@ const ActivityPoints = () => {
                   accept=".pdf,.jpg,.jpeg,.png" 
                   onChange={handleFileChange}
                   className="file-input"
+                  accept=".pdf,.jpg,.jpeg,.png"
                 />
                 <label htmlFor="certificate-upload" className="file-label">
                   <Upload size={20} />

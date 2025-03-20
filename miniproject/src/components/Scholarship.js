@@ -9,14 +9,54 @@ const ScholarshipPage = () => {
   const [scholarships, setScholarships] = useState([]);
   const [activeTab, setActiveTab] = useState('');
   const [loading, setLoading] = useState(true);
+  const [studentId, setStudentId] = useState(null);
 
-  // Fetch scholarships from Supabase
+  // Fetch user information and scholarships from Supabase
   useEffect(() => {
+    // Get current authenticated user
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Get the student profile from the database
+          const { data: studentData, error: studentError } = await supabase
+            .from('student')
+            .select('*')
+            .eq('auth_id', user.id)
+            .single();
+          
+          if (studentError) throw studentError;
+          if (studentData) {
+            setStudentId(studentData.id);
+          }
+        }
+      } catch (err) {
+        console.error("Error getting current user:", err);
+      }
+    };
+
     const fetchScholarships = async () => {
       try {
         const { data, error } = await supabase.from('scholarships').select('*');
         if (error) throw error;
-        setScholarships(data || []);
+        
+        // Also fetch student applications to mark applied scholarships
+        const { data: applications, error: appError } = await supabase
+          .from('scholarship_applications')
+          .select('*')
+          .eq('student_id', studentId);
+        
+        if (appError) throw appError;
+        
+        // Mark scholarships that have been applied for
+        const appliedScholarshipIds = applications ? applications.map(app => app.scholarship_id) : [];
+        
+        const processedScholarships = data.map(scholarship => ({
+          ...scholarship,
+          applied: appliedScholarshipIds.includes(scholarship.id)
+        }));
+        
+        setScholarships(processedScholarships || []);
       } catch (err) {
         console.error("Error fetching scholarships:", err);
       } finally {
@@ -24,8 +64,11 @@ const ScholarshipPage = () => {
       }
     };
 
-    fetchScholarships();
-  }, []);
+    getCurrentUser();
+    if (studentId) {
+      fetchScholarships();
+    }
+  }, [studentId]);
 
   // Load BotPress chatbot scripts dynamically
   useEffect(() => {
@@ -57,11 +100,40 @@ const ScholarshipPage = () => {
 
   // Apply to scholarship
   const handleApply = async (id) => {
+    if (!studentId) {
+      alert("You must be logged in to apply");
+      return;
+    }
+    
     try {
+      // Update local state first for immediate UI feedback
       setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: true } : sch));
+      
+      // Get scholarship details for the notification
+      const scholarship = scholarships.find(s => s.id === id);
+      
+      // Create an application record in the database
+      const { data, error } = await supabase
+        .from('scholarship_applications')
+        .insert([
+          { 
+            student_id: studentId, 
+            scholarship_id: id,
+            scholarship_name: scholarship.name,
+            status: 'pending',
+            applied_date: new Date().toISOString()
+          }
+        ]);
+      
+      if (error) throw error;
+      
       alert("Application submitted successfully!");
     } catch (error) {
       console.error("Error applying for scholarship:", error);
+      
+      // Revert the local state change if the database update failed
+      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: false } : sch));
+      
       alert("Failed to submit application. Please try again.");
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import StudentModal from "./StudentModal";
+import StudentScholarshipModal from "./StudentScholarshipModal";
 import { 
   Table, 
   TableHead, 
@@ -8,9 +9,6 @@ import {
   TableCell, 
   TableBody, 
   Badge, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
   Button, 
   Box,
   Container,
@@ -30,12 +28,12 @@ import { LibraryBooks, EmojiEvents, School } from "@mui/icons-material";
 
 export default function TeacherDashboard() {
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [selectedScholarship, setSelectedScholarship] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [students, setStudents] = useState([]);
   const [allStudents, setAllStudents] = useState([]); // Store all students
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [isScholarshipModalOpen, setIsScholarshipModalOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -77,17 +75,65 @@ export default function TeacherDashboard() {
     fetchStudents();
   }, []);
 
+  // Fetch scholarship applications count for each student
+  useEffect(() => {
+    const fetchScholarshipCounts = async () => {
+      if (!students.length) return;
+      
+      try {
+        // Get all scholarship applications
+        const { data, error } = await supabase
+          .from("scholarship_applications")
+          .select("student_id, status");
+          
+        if (error) throw error;
+        
+        // Process scholarship data to count pending applications per student
+        const applicationCounts = {};
+        data.forEach(app => {
+          if (app.status === "pending") {
+            applicationCounts[app.student_id] = (applicationCounts[app.student_id] || 0) + 1;
+          }
+        });
+        
+        // Update students with application counts
+        setStudents(students.map(student => ({
+          ...student,
+          newApplications: applicationCounts[student.id] || 0
+        })));
+        
+      } catch (err) {
+        console.error("Error fetching scholarship applications:", err);
+      }
+    };
+    
+    if (currentClass && activeTab === 1) {
+      fetchScholarshipCounts();
+    }
+  }, [students, currentClass, activeTab]);
+
   const handleTabChange = (index) => {
     setActiveTab(index);
   };
 
   const handleStudentClick = (student) => {
     setSelectedStudent(student);
-    setIsModalOpen(true);
+    if (activeTab === 0) {
+      setIsActivityModalOpen(true);
+    } else {
+      setIsScholarshipModalOpen(true);
+    }
   };
 
-  const handleModalClose = () => {
-    setIsModalOpen(false);
+  const handleActivityModalClose = () => {
+    setIsActivityModalOpen(false);
+    setTimeout(() => {
+      setSelectedStudent(null);
+    }, 300);
+  };
+
+  const handleScholarshipModalClose = () => {
+    setIsScholarshipModalOpen(false);
     setTimeout(() => {
       setSelectedStudent(null);
     }, 300);
@@ -286,7 +332,7 @@ export default function TeacherDashboard() {
                       {activeTab === 0 ? (
                         <TableCell>TOTAL ACTIVITY POINTS</TableCell>
                       ) : (
-                        <TableCell>NEW APPLICATIONS</TableCell>
+                        <TableCell>SCHOLARSHIP APPLICATIONS</TableCell>
                       )}
                     </TableRow>
                   </TableHead>
@@ -310,9 +356,17 @@ export default function TeacherDashboard() {
                             <TableCell>{student.total_activity_point || 0}</TableCell>
                           ) : (
                             <TableCell>
-                              {student.newApplications > 0 ? 
-                                <Badge color="error" badgeContent={student.newApplications} /> : 
-                                "No New Applications"}
+                              {student.newApplications > 0 ? (
+                                <Badge 
+                                  color="error" 
+                                  badgeContent={student.newApplications}
+                                  sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem' } }}
+                                >
+                                  <Box component="span" sx={{ pr: 2 }}>Pending Review</Box>
+                                </Badge>
+                              ) : (
+                                "No Pending Applications"
+                              )}
                             </TableCell>
                           )}
                         </TableRow>
@@ -333,101 +387,21 @@ export default function TeacherDashboard() {
       )}
 
       {/* Student Activity Points Modal */}
-      {isModalOpen && selectedStudent && (
+      {isActivityModalOpen && selectedStudent && (
         <StudentModal
-          open={isModalOpen}
-          onClose={handleModalClose}
+          open={isActivityModalOpen}
+          onClose={handleActivityModalClose}
           student={selectedStudent}
         />
       )}
 
-      {/* Other existing modals remain unchanged */}
-      {selectedStudent && activeTab === 1 && (
-        <Dialog 
-          open={isModalOpen} 
-          onClose={handleModalClose} 
-          fullWidth 
-          maxWidth="md"
-          fullScreen={isMobile}
-        >
-          <DialogTitle sx={{ borderBottom: '1px solid #eee', pb: 2 }}>
-            {selectedStudent.name}'s Scholarships
-          </DialogTitle>
-          <DialogContent sx={{ p: 0 }}>
-            <Table>
-              <TableHead sx={{ bgcolor: '#f9f9f9' }}>
-                <TableRow>
-                  <TableCell>Scholarship</TableCell>
-                  <TableCell>Status</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(selectedStudent.scholarships || []).length > 0 ? (
-                  (selectedStudent.scholarships || []).map((scholarship, index) => (
-                    <TableRow 
-                      key={index} 
-                      onClick={() => setSelectedScholarship(scholarship)} 
-                      sx={{ 
-                        cursor: "pointer",
-                        '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
-                      }}
-                    >
-                      <TableCell>{scholarship.name}</TableCell>
-                      <TableCell>{scholarship.status}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={2} align="center" sx={{ py: 3 }}>
-                      <Typography>No scholarships found</Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                onClick={handleModalClose} 
-                variant="contained" 
-                color="primary"
-              >
-                Close
-              </Button>
-            </Box>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Scholarship Details Modal */}
-      {selectedScholarship && (
-        <Dialog 
-          open={!!selectedScholarship} 
-          onClose={() => setSelectedScholarship(null)} 
-          fullWidth 
-          maxWidth="md"
-          fullScreen={isMobile}
-        >
-          <DialogTitle sx={{ borderBottom: '1px solid #eee', pb: 2 }}>
-            {selectedScholarship.name} Details
-          </DialogTitle>
-          <DialogContent sx={{ p: 3 }}>
-            <Typography variant="body1" paragraph>
-              <strong>Status:</strong> {selectedScholarship.status}
-            </Typography>
-            <Typography variant="body1" paragraph>
-              <strong>Details:</strong> {selectedScholarship.details || 'No details available'}
-            </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-              <Button 
-                onClick={() => setSelectedScholarship(null)}
-                variant="contained" 
-                color="primary"
-              >
-                Close
-              </Button>
-            </Box>
-          </DialogContent>
-        </Dialog>
+      {/* Student Scholarship Applications Modal */}
+      {isScholarshipModalOpen && selectedStudent && (
+        <StudentScholarshipModal
+          open={isScholarshipModalOpen}
+          onClose={handleScholarshipModalClose}
+          student={selectedStudent}
+        />
       )}
     </Container>
   );

@@ -85,13 +85,23 @@ const ActivityPoints = () => {
       console.log("No file selected");
       return;
     }
-  
+    
     const { data: { session } } = await supabase.auth.getSession();
-  
-    if (!session) {
-      alert("User not authenticated");
-      return;
+    
+    // Generate a unique file name
+    const uniqueFileName = `${Date.now()}-${file.name}`;
+    
+    const { data, error } = await supabase.storage
+      .from('certuploads')
+      .upload(uniqueFileName, file);
+    
+    if (error) {
+      console.error("Upload failed:", error.message);
+    } else {
+      console.log("File uploaded successfully:", data);
     }
+    
+
   
     console.log(file); // 🎯 File is uploaded successfully
   };

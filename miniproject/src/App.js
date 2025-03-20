@@ -6,7 +6,7 @@ import Login from "../src/components/Login";
 import Dashboard from "../src/components/Dashboard";
 import Activity from "../src/components/Activity";
 import Scholarship from "../src/components/Scholarship";
-
+import Ex from "../src/components/ex";
 function App() {
   return (
     <Router>
@@ -17,6 +17,7 @@ function App() {
         <Route path="/Dashboard" element={<Dashboard/>} />
         <Route path="/Activity" element={<Activity/>} />
         <Route path="/Scholarship" element={<Scholarship/>} />
+        <Route path="/ex" element={<Ex/>} />
       </Routes>
     </Router>
   );

@@ -72,7 +72,16 @@ const ActivityPoints = () => {
       console.error("Failed to fetch certificates:", error);
     }
   };
-  
+  /*const fetchStudentData = async () => {
+    const userId = localStorage.getItem('userId');
+    
+    if (!userId) {
+      // Redirect to login if no user ID found
+      window.location.href = '/';
+      return;
+    }
+    fetchStudentData();
+  };*/
   // Handle file selection
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
@@ -94,6 +103,18 @@ const ActivityPoints = () => {
     const { data, error } = await supabase.storage
       .from('certuploads')
       .upload(uniqueFileName, file);
+
+      const { data: urlData } = supabase
+        .storage
+        .from('certuploads')
+        .getPublicUrl(uniqueFileName);
+
+    const fileUrl = urlData.publicUrl;
+
+    // Insert into 'certificates' table
+    const { error: insertError } = await supabase
+        .from('certificates')
+        .insert([{ student_id: userId, certificate: fileUrl }]);
     
     if (error) {
       console.error("Upload failed:", error.message);
@@ -107,93 +128,6 @@ const ActivityPoints = () => {
   };
   
   
-  
-  // Handle file upload to Supabase
-  /*const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
-    
-    // Check if user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-if (!session) {
-  alert("User not authenticated");
-  return;
-}
-
-    
-    
-    setUploadProgress(0);
-    // Show progress starting
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-      progress += 5;
-      if (progress <= 90) {
-        setUploadProgress(progress);
-      }
-    }, 200);
-    
-    try {
-      // Process each file and upload to Supabase
-      const newUploadedFiles = [];
-      const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("User not authenticated");
-      clearInterval(progressInterval);
-      return;
-    }
-      for (const file of selectedFiles) {
-        // Create unique filename with timestamp
-        const filename = `certificate_${Date.now()}_${file.name}`;
-        
-        // Upload to Supabase
-        const { data, error } = await supabase.storage
-        .from('certuploads')
-        .upload(`${user.id}/${filename}`, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-        
-      if (error) {
-        console.error("Error uploading file:", error);
-        throw error;
-      }
-        
-        // Add to our list of uploaded files
-        newUploadedFiles.push({
-          id: uploadedFiles.length + newUploadedFiles.length + 1,
-          name: file.name,
-          date: new Date().toISOString().split('T')[0],
-          status: "Pending",
-          path: filename
-        });
-      }
-      
-      // Complete the upload process
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      
-      // Update the UI after upload completes
-      setTimeout(() => {
-        setUploadedFiles([...uploadedFiles, ...newUploadedFiles]);
-        setUploadProgress(0);
-        setSelectedFiles([]);
-        setShowUploadModal(false);
-        // Show upload success message
-        setShowUploadSuccess(true);
-        // Hide success message after 5 seconds
-        setTimeout(() => {
-          setShowUploadSuccess(false);
-        }, 5000);
-      }, 1000);
-      
-    } catch (error) {
-      clearInterval(progressInterval);
-      console.error("Upload failed:", error);
-      setUploadProgress(0);
-      // You could add error handling UI here
-    }
-  };*/
-  
-  // Remove a file from the selected files list
   const removeFile = (index) => {
     setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
   };

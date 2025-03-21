@@ -1,22 +1,17 @@
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home } from 'lucide-react';
-import { supabase } from '../supabase'; // Assuming supabase is set up in a parent directory
+import { supabase } from '../supabase'; 
 import './Scholarship.css';
-// Import axios for API requests
-import axios from 'axios';
 
 const ScholarshipPage = () => {
-  // State for scholarships
+  // State for scholarships from database
   const [scholarships, setScholarships] = useState([]);
-  
-  // State for the active tab
   const [activeTab, setActiveTab] = useState('');
-  
-  // State for loading
   const [loading, setLoading] = useState(true);
+  const [studentId, setStudentId] = useState(null);
 
-  // Fetch scholarships from Supabase
+  // Fetch user information and scholarships from Supabase
   useEffect(() => {
     // Get current authenticated user
     const getCurrentUser = async () => {
@@ -42,28 +37,38 @@ const ScholarshipPage = () => {
 
     const fetchScholarships = async () => {
       try {
-        setLoading(true);
-        const { data, error } = await supabase.from("scholarships").select("*");
+        const { data, error } = await supabase.from('scholarships').select('*');
+        if (error) throw error;
         
-        if (error) {
-          console.error("Error fetching scholarships:", error);
-        } else {
-          // Transform data to match the expected schema if needed
-          const transformedData = data.map(scholarship => ({
-            ...scholarship,
-            applied: scholarship.applied || false // Ensure applied property exists
-          }));
-          setScholarships(transformedData);
-        }
-      } catch (error) {
-        console.error("Failed to fetch scholarships:", error);
+        // Also fetch student applications to mark applied scholarships
+        const { data: applications, error: appError } = await supabase
+          .from('scholarship_applications')
+          .select('*')
+          .eq('student_id', studentId);
+        
+        if (appError) throw appError;
+        
+        // Mark scholarships that have been applied for
+        const appliedScholarshipIds = applications ? applications.map(app => app.scholarship_id) : [];
+        
+        const processedScholarships = data.map(scholarship => ({
+          ...scholarship,
+          applied: appliedScholarshipIds.includes(scholarship.id)
+        }));
+        
+        setScholarships(processedScholarships || []);
+      } catch (err) {
+        console.error("Error fetching scholarships:", err);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
-    fetchScholarships();
-  }, []);
+    getCurrentUser();
+    if (studentId) {
+      fetchScholarships();
+    }
+  }, [studentId]);
 
   // Load BotPress chatbot scripts dynamically
   useEffect(() => {
@@ -88,28 +93,47 @@ const ScholarshipPage = () => {
 
   // Filter scholarships based on active tab
   const filteredScholarships = activeTab === 'eligible'
-    ? scholarships.filter(scholarship => !scholarship.applied) // Only non-applied scholarships
+    ? (scholarships || []).filter(scholarship => !scholarship.applied)
     : activeTab === 'applied'
-      ? scholarships.filter(scholarship => scholarship.applied) // Only applied scholarships
-      : scholarships; // Show all scholarships when no tab is selected
+      ? (scholarships || []).filter(scholarship => scholarship.applied)
+      : scholarships || [];
 
   // Apply to scholarship
   const handleApply = async (id) => {
+    if (!studentId) {
+      alert("You must be logged in to apply");
+      return;
+    }
+    
     try {
-      // In a real application, you would update both the user's applied scholarships 
-      // and the scholarship's applicants list in the database
+      // Update local state first for immediate UI feedback
+      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: true } : sch));
       
-      // For now, we'll just update the local state
-      setScholarships(scholarships.map(scholarship => 
-        scholarship.id === id ? { ...scholarship, applied: true } : scholarship
-      ));
+      // Get scholarship details for the notification
+      const scholarship = scholarships.find(s => s.id === id);
       
-      // Here you would add code to update the supabase database
-      // e.g., await supabase.from("user_scholarships").insert([{ user_id: currentUserId, scholarship_id: id }]);
+      // Create an application record in the database
+      const { data, error } = await supabase
+        .from('scholarship_applications')
+        .insert([
+          { 
+            student_id: studentId, 
+            scholarship_id: id,
+            scholarship_name: scholarship.name,
+            status: 'pending',
+            applied_date: new Date().toISOString()
+          }
+        ]);
       
-      alert('Scholarship data refreshed successfully!');
+      if (error) throw error;
+      
+      alert("Application submitted successfully!");
     } catch (error) {
       console.error("Error applying for scholarship:", error);
+      
+      // Revert the local state change if the database update failed
+      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: false } : sch));
+      
       alert("Failed to submit application. Please try again.");
     }
   };
@@ -123,13 +147,7 @@ const ScholarshipPage = () => {
         </div>
         <div className="nav-right">
           <div className="search-container">
-            <input 
-              type="text" 
-              placeholder="Search scholarships" 
-              className="search-input" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <input type="text" placeholder="Search" className="search-input" />
             <Search className="search-icon" />
           </div>
           <Bell className="nav-icon" color="#FFD700" />
@@ -186,25 +204,24 @@ const ScholarshipPage = () => {
                 >
                   Applied
                 </button>
-                <button 
-                  className="refresh-button"
-                  onClick={refreshScholarships}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Refreshing...' : 'Refresh Data'}
-                </button>
               </div>
             </div>
           </div>
           
           {/* Scholarship List */}
           <main className="main-content">
-            {isLoading ? (
-              <div className="loading-container">
-                <div className="loading-spinner"></div>
-                <p>Loading scholarships...</p>
+            {loading ? (
+              <div className="loading-message">Loading scholarships...</div>
+            ) : filteredScholarships.length === 0 ? (
+              <div className="no-scholarships-message">
+                {activeTab === 'eligible' ? 
+                  "No eligible scholarships available at the moment." : 
+                  activeTab === 'applied' ? 
+                    "You haven't applied to any scholarships yet." : 
+                    "No scholarships available at the moment."
+                }
               </div>
-            ) : filteredScholarships.length > 0 ? (
+            ) : (
               <div className="scholarship-container">
                 {filteredScholarships.map(scholarship => (
                   <div key={scholarship.id} className="scholarship-card">
@@ -221,26 +238,17 @@ const ScholarshipPage = () => {
                       <p className="deadline"><strong>Deadline:</strong> {scholarship.deadline}</p>
                     </div>
                     <div className="scholarship-actions">
-                      {!scholarship.applied ? (
+                      {scholarship.applied ? (
+                        <p style={{ color: "#FF5722", fontWeight: "bold" }}>Applied</p>
+                      ) : (
                         <>
-                          <button 
-                            className="apply-button" 
-                            onClick={() => handleApply(scholarship.id)}
-                          >
-                            Apply Now
-                          </button>
+                          <button className="apply-button" onClick={() => handleApply(scholarship.id)}>Apply Now</button>
                           <button className="details-button">View Details</button>
                         </>
-                      ) : (
-                        <p style={{ color: "#FF5722", fontWeight: "bold" }}>Applied</p>
                       )}
                     </div>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="no-results">
-                <p>No scholarships found matching your criteria.</p>
               </div>
             )}
           </main>

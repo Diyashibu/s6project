@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home } from 'lucide-react';
-import { supabase } from '../supabase'; // Ensure this is correctly set up
+import { supabase } from '../supabase'; 
 import './Scholarship.css';
 
 const ScholarshipPage = () => {

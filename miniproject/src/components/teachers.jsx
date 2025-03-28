@@ -112,6 +112,8 @@ export default function TeacherDashboard() {
     }
   }, [students, currentClass, activeTab]);
 
+  
+
   const handleTabChange = (index) => {
     setActiveTab(index);
   };

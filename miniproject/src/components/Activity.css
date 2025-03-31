@@ -1,6 +1,7 @@
 body {
     margin: 0;
-    /*background: radial-gradient(circle, rgba(237,231,234,1) 1%, rgba(122,153,190,1) 100%);*/
+    background: radial-gradient(circle, rgba(237,231,234,1) 1%, rgba(122,153,190,1) 100%);
+    overflow: hidden; /* Prevent body scrolling */
   }
   
   /* Main Container */
@@ -757,7 +758,7 @@ body {
 
 
 
-  /* Add these styles to your Activity.css file */
+/* Add these styles to your Activity.css file */
 
 /* Upload Success Message */
 .upload-success-message {

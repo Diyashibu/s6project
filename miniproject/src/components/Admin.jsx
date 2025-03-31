@@ -1,31 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
-import {
-  Card,
-  CardContent,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-  Stack,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
-  MenuItem,
-  Box,
-  Grid,
-  InputAdornment,
-  IconButton,
-  Tabs,
-  Tab,
-  Chip,
+import {Card,CardContent,Button,Table,TableBody,TableCell,TableContainer,TableHead,TableRow,Paper,Typography,Stack,
+  Dialog,DialogActions,DialogContent,DialogTitle,TextField,MenuItem,Box,Grid,InputAdornment,IconButton,Tabs,Tab,Chip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";

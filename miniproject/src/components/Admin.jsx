@@ -1,31 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
-import {
-  Card,
-  CardContent,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-  Stack,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
-  MenuItem,
-  Box,
-  Grid,
-  InputAdornment,
-  IconButton,
-  Tabs,
-  Tab,
-  Chip,
+import {Card,CardContent,Button,Table,TableBody,TableCell,TableContainer,TableHead,TableRow,Paper,Typography,Stack,
+  Dialog,DialogActions,DialogContent,DialogTitle,TextField,MenuItem,Box,Grid,InputAdornment,IconButton,Tabs,Tab,Chip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
@@ -196,6 +172,21 @@ const AdminDashboard = () => {
       console.error("Error adding scholarship:", error);
       alert("Error adding scholarship. Please try again.");
     } else {
+      // Create notification for all students about new scholarship
+      const notification = {
+        id: Date.now(),
+        type: "scholarship",
+        title: `New Scholarship Available: ${newScholarship.name}`,
+        message: `A new scholarship from ${newScholarship.provider} worth ${newScholarship.amount} is now available. Deadline: ${newScholarship.deadline}`,
+        created_at: new Date().toISOString(),
+        read: false
+      };
+      
+      const { error: notifError } = await supabase.from("notifications").insert([notification]);
+      if (notifError) {
+        console.error("Error creating notification:", notifError);
+      }
+      
       fetchScholarships();
       alert("Scholarship added successfully!");
       setOpenScholarshipModal(false);

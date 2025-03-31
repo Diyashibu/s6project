@@ -508,7 +508,7 @@ const AuthPage = () => {
               sx={{ mb: 2 }}
             />
 
-            {/* Class Unique ID field only for teacher login - not in signup */}
+            {/* Class Unique ID field only for teacher login - not in signup 
             {!showSignUp && userType === "teacher" && (
               <TextField 
                 fullWidth 
@@ -521,7 +521,7 @@ const AuthPage = () => {
                 sx={{ mb: 2 }}
                 helperText="Enter class unique ID or '123' for admin access"
               />
-            )}
+            )}*/}
 
             {showSignUp && (
               <>

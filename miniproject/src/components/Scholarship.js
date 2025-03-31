@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, Activity, Award, LogOut, Home } from 'lucide-react';
-import { supabase } from '../supabase'; // Ensure this is correctly set up
+import { supabase } from '../supabase';
 import './Scholarship.css';
 
 const ScholarshipPage = () => {
@@ -11,58 +11,121 @@ const ScholarshipPage = () => {
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState(null);
   const [error, setError] = useState(null);
+  const [studentData, setStudentData] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Fetch user information and scholarships from Supabase
+  // Fetch user information from local storage
   useEffect(() => {
-    // Get current authenticated user
-    const getCurrentUser = async () => {
+    const fetchStudentData = async () => {
+      const userId = localStorage.getItem('userId');
+      
+      if (!userId) {
+        console.error('No user ID found in local storage');
+        setError("You are not logged in. Please log in to view and apply for scholarships.");
+        setLoading(false);
+        return;
+      }
+      
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Get the student profile from the database
-          const { data: studentData, error: studentError } = await supabase
-            .from('student')
-            .select('*')
-            .eq('auth_id', user.id)
-            .single();
+        setStudentId(userId);
+        
+        const { data, error } = await supabase
+          .from('student')
+          .select('*')
+          .eq('id', userId)
+          .single();
           
-          if (studentError) throw studentError;
-          if (studentData) {
-            setStudentId(studentData.id);
-          }
+        if (error) {
+          console.error('Error fetching student data:', error);
+          setError("Failed to load student profile. Some features may be limited.");
+        } else if (data) {
+          setStudentData(data);
         }
       } catch (err) {
-        console.error("Error getting current user:", err);
-        setError("Failed to authenticate user. Please try logging in again.");
+        console.error("Error:", err);
+        setError("An error occurred while loading your profile.");
       }
     };
 
-    getCurrentUser();
+    fetchStudentData();
   }, []);
 
-  // Fetch scholarships whenever studentId changes or when component mounts
+  // Create scholarship_applications table if it doesn't exist
+  const createApplicationsTable = async () => {
+    try {
+      // Try to create the table using SQL
+      const { error } = await supabase.rpc('create_scholarship_applications_table', {});
+      
+      if (error) {
+        console.error("Could not create applications table using RPC:", error);
+        
+        // Fallback: Try direct SQL if RPC fails
+        const { error: sqlError } = await supabase.query(`
+          CREATE TABLE IF NOT EXISTS scholarship_applications (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            student_id UUID NOT NULL,
+            scholarship_id UUID NOT NULL,
+            scholarship_name TEXT,
+            status TEXT DEFAULT 'pending',
+            applied_date TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+        `);
+        
+        if (sqlError) {
+          console.error("Failed to create table via SQL:", sqlError);
+          return false;
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error("Error in createApplicationsTable:", err);
+      return false;
+    }
+  };
+
+  // Fetch scholarships
   useEffect(() => {
     const fetchScholarships = async () => {
+      setLoading(true);
+      setError(null);
+      
       try {
-        setLoading(true);
+        console.log("Fetching scholarships data...");
+        
+        // Make sure the applications table exists
+        await createApplicationsTable();
         
         // Fetch all scholarships from the database
         const { data: scholarshipsData, error: scholarshipsError } = await supabase
           .from('scholarships')
           .select('*');
         
-        if (scholarshipsError) throw scholarshipsError;
+        if (scholarshipsError) {
+          console.error("Supabase error details:", scholarshipsError);
+          throw scholarshipsError;
+        }
         
-        // If student is logged in, fetch their applications to mark which scholarships they've applied to
+        console.log("Scholarships data received:", scholarshipsData);
+        
+        // If student is logged in, try to fetch their applications
         let appliedScholarshipIds = [];
         if (studentId) {
-          const { data: applications, error: appError } = await supabase
-            .from('scholarship_applications')
-            .select('*')
-            .eq('student_id', studentId);
-          
-          if (appError) throw appError;
-          appliedScholarshipIds = applications ? applications.map(app => app.scholarship_id) : [];
+          try {
+            const { data: applications, error: appError } = await supabase
+              .from('scholarship_applications')
+              .select('scholarship_id')
+              .eq('student_id', studentId);
+            
+            if (!appError && applications) {
+              appliedScholarshipIds = applications.map(app => app.scholarship_id);
+              console.log("Applied scholarship IDs:", appliedScholarshipIds);
+            } else if (appError) {
+              console.warn("Error fetching applications:", appError);
+            }
+          } catch (appErr) {
+            console.error("Error with applications, continuing without applied status:", appErr);
+            // Continue without the applied status - non-critical error
+          }
         }
         
         // Mark scholarships that have been applied for
@@ -71,31 +134,57 @@ const ScholarshipPage = () => {
           applied: appliedScholarshipIds.includes(scholarship.id)
         }));
         
+        console.log("Processed scholarships:", processedScholarships);
         setScholarships(processedScholarships || []);
+        setError(null);
       } catch (err) {
-        console.error("Error fetching scholarships:", err);
-        setError("Failed to load scholarships. Please refresh the page.");
+        console.error("Error fetching scholarships (full error):", err);
+        setError("Failed to load scholarships. Please try again.");
+        // Don't reset scholarships on error to maintain any existing data
       } finally {
         setLoading(false);
       }
     };
 
+    // Failsafe timeout
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.log("Loading timeout reached, forcing state update");
+        setLoading(false);
+      }
+    }, 10000);
+
+    // Fetch scholarships if studentId exists or if we're done initial loading
     fetchScholarships();
     
     // Set up real-time subscription to the scholarships table
-    const scholarshipsSubscription = supabase
-      .channel('scholarships-channel')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'scholarships' }, 
-        fetchScholarships
-      )
-      .subscribe();
+    let scholarshipsSubscription;
+    if (studentId) {
+      scholarshipsSubscription = supabase
+        .channel('scholarships-channel')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'scholarships' }, 
+          (payload) => {
+            console.log("Database changed, payload:", payload);
+            setRefreshTrigger(prev => prev + 1);
+          }
+        )
+        .subscribe();
+    }
     
-    // Clean up subscription when component unmounts
+    // Clean up function
     return () => {
-      supabase.removeChannel(scholarshipsSubscription);
+      clearTimeout(loadingTimeout);
+      if (scholarshipsSubscription) {
+        supabase.removeChannel(scholarshipsSubscription);
+      }
     };
-  }, [studentId]);
+  }, [studentId, refreshTrigger]);
+
+  // Function to manually refresh scholarships
+  const handleRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   // Load BotPress chatbot scripts dynamically
   useEffect(() => {
@@ -129,39 +218,56 @@ const ScholarshipPage = () => {
   const handleApply = async (id) => {
     if (!studentId) {
       alert("You must be logged in to apply");
+      window.location.href = '/';
       return;
     }
     
     try {
-      // Update local state first for immediate UI feedback
-      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: true } : sch));
+      // Log the IDs for debugging
+      console.log("Student ID type:", typeof studentId, "value:", studentId);
+      console.log("Scholarship ID type:", typeof id, "value:", id);
       
-      // Get scholarship details for the notification
-      const scholarship = scholarships.find(s => s.id === id);
+      // Get scholarship details
+      const scholarship = scholarships.find(s => String(s.id) === String(id));
       
-      // Create an application record in the database
+      if (!scholarship) {
+        alert("Scholarship not found");
+        return;
+      }
+      
+      // Ensure both IDs are strings
+      const studentIdString = String(studentId);
+      const scholarshipIdString = String(id);
+      
+      // Create application record
       const { data, error } = await supabase
         .from('scholarship_applications')
         .insert([
           { 
-            student_id: studentId, 
-            scholarship_id: id,
+            student_id: studentIdString,
+            scholarship_id: scholarshipIdString,
             scholarship_name: scholarship.name,
             status: 'pending',
             applied_date: new Date().toISOString()
           }
         ]);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error inserting application:", error);
+        alert(error.message || "Failed to submit application. Please try again.");
+        return;
+      }
+      
+      // Update local state and switch tabs
+      setScholarships(prev => prev.map(sch => 
+        String(sch.id) === String(id) ? { ...sch, applied: true } : sch
+      ));
+      setActiveTab('applied');
       
       alert("Application submitted successfully!");
     } catch (error) {
-      console.error("Error applying for scholarship:", error);
-      
-      // Revert the local state change if the database update failed
-      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: false } : sch));
-      
-      alert("Failed to submit application. Please try again.");
+      console.error("General error in apply function:", error);
+      alert("An unexpected error occurred. Please try again later.");
     }
   };
 
@@ -172,14 +278,6 @@ const ScholarshipPage = () => {
         <div className="nav-left">
           <span className="nav-title">Student Portal</span>
         </div>
-      {/*}  <div className="nav-right">
-          <div className="search-container">
-            <input type="text" placeholder="Search" className="search-input" />
-            <Search className="search-icon" />
-          </div>
-          <Bell className="nav-icon" color="#FFD700" />
-          <Settings className="nav-icon" color="#4CAF50" />
-        </div>*/}
       </header>
 
       <div className="main-container">
@@ -223,7 +321,7 @@ const ScholarshipPage = () => {
                   className={`tab-button ${activeTab === 'eligible' ? 'active' : ''}`}
                   onClick={() => setActiveTab(activeTab === 'eligible' ? '' : 'eligible')} 
                 >
-                  Eligible
+                  All
                 </button>
                 <button 
                   className={`tab-button ${activeTab === 'applied' ? 'active' : ''}`}
@@ -231,17 +329,44 @@ const ScholarshipPage = () => {
                 >
                   Applied
                 </button>
+                
               </div>
             </div>
           </div>
+          
+          {/* Authentication Status Message */}
+          {!studentId && !loading && (
+            <div className="auth-message" style={{
+              backgroundColor: "#FFF3CD", 
+              color: "#856404", 
+              padding: "12px", 
+              margin: "12px", 
+              borderRadius: "4px",
+              textAlign: "center"
+            }}>
+              You are not logged in. Please <Link to="/" style={{fontWeight: "bold"}}>log in</Link> to apply for scholarships.
+            </div>
+          )}
+          
+          {/* Error Message (if any) */}
+          {error && (
+            <div className="error-message" style={{
+              backgroundColor: "#F8D7DA",
+              color: "#721C24",
+              padding: "12px",
+              margin: "12px",
+              borderRadius: "4px",
+              textAlign: "center"
+            }}>
+              {error} <button onClick={handleRefresh} style={{marginLeft: "10px", fontWeight: "bold", padding: "5px 10px", backgroundColor: "#DC3545", color: "white", border: "none", borderRadius: "4px", cursor: "pointer"}}>Try Again</button>
+            </div>
+          )}
           
           {/* Scholarship List */}
           <main className="main-content">
             {loading ? (
               <div className="loading-message">Loading scholarships...</div>
-            ) : error ? (
-              <div className="error-message">{error}</div>
-            ) : filteredScholarships.length === 0 ? (
+            ) : filteredScholarships.length === 0 && !error ? (
               <div className="no-scholarships-message">
                 {activeTab === 'eligible' ? 
                   "No eligible scholarships available at the moment." : 
@@ -262,17 +387,45 @@ const ScholarshipPage = () => {
                       <span>Provider: {scholarship.provider}</span>
                     </div>
                     <div className="scholarship-details">
-                      <p><strong>Eligibility:</strong> {scholarship.eligibility}</p>
-                      <p><strong>Description:</strong> {scholarship.description}</p>
-                      <p className="deadline"><strong>Deadline:</strong> {scholarship.deadline}</p>
+                      <p><strong>Eligibility:</strong> {scholarship.eligibility || "Open to all students"}</p>
+                      <p><strong>Description:</strong> {scholarship.description || "No description provided"}</p>
+                      <p className="deadline"><strong>Deadline:</strong> {scholarship.deadline || "Not specified"}</p>
                     </div>
                     <div className="scholarship-actions">
                       {scholarship.applied ? (
                         <p style={{ color: "#FF5722", fontWeight: "bold" }}>Applied</p>
                       ) : (
                         <>
-                          <button className="apply-button" onClick={() => handleApply(scholarship.id)}>Apply Now</button>
-                          <button className="details-button">View Details</button>
+                          <button 
+                            className="apply-button" 
+                            onClick={() => handleApply(scholarship.id)}
+                            disabled={!studentId}
+                            style={{
+                              backgroundColor: "#4CAF50",
+                              color: "white",
+                              border: "none",
+                              padding: "8px 16px",
+                              borderRadius: "4px",
+                              cursor: studentId ? "pointer" : "not-allowed",
+                              opacity: studentId ? 1 : 0.6
+                            }}
+                          >
+                            Apply Now
+                          </button>
+                          <button 
+                            className="details-button"
+                            style={{
+                              backgroundColor: "#2196F3",
+                              color: "white",
+                              border: "none",
+                              padding: "8px 16px",
+                              borderRadius: "4px",
+                              marginLeft: "8px",
+                              cursor: "pointer"
+                            }}
+                          >
+                            View Details
+                          </button>
                         </>
                       )}
                     </div>

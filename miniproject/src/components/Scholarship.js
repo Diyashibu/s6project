@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, Activity, Award, LogOut, Home } from 'lucide-react';
-import { supabase } from '../supabase'; 
+import { supabase } from '../supabase'; // Ensure this is correctly set up
 import './Scholarship.css';
 
 const ScholarshipPage = () => {
@@ -10,9 +10,11 @@ const ScholarshipPage = () => {
   const [activeTab, setActiveTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState(null);
+  const [error, setError] = useState(null);
 
-  // Fetch user information and scholarships
+  // Fetch user information and scholarships from Supabase
   useEffect(() => {
+    // Get current authenticated user
     const getCurrentUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -24,117 +26,106 @@ const ScholarshipPage = () => {
             .eq('auth_id', user.id)
             .single();
           
-          if (studentError) {
-            console.error("Error fetching student data:", studentError);
-            // Continue with fetching scholarships even if student data has an error
-          }
-          
+          if (studentError) throw studentError;
           if (studentData) {
             setStudentId(studentData.id);
           }
         }
-        
-        // Fetch scholarships regardless of user authentication status
-        fetchScholarships();
       } catch (err) {
         console.error("Error getting current user:", err);
-        // Continue with fetching scholarships even if getting user fails
-        fetchScholarships();
-      }
-    };
-
-    const fetchScholarships = async () => {
-      try {
-        console.log("Fetching all scholarships");
-        const { data, error } = await supabase.from('scholarships').select('*');
-        
-        if (error) {
-          console.error("Error fetching scholarships:", error);
-          setLoading(false);
-          return;
-        }
-        
-        console.log("Scholarships fetched:", data ? data.length : 0);
-        
-        // Since scholarship_applications table doesn't exist, 
-        // we'll set all scholarships as not applied
-        const processedScholarships = data.map(scholarship => ({
-          ...scholarship,
-          applied: false // No applications table, so no scholarships are applied for
-        }));
-        
-        setScholarships(processedScholarships || []);
-      } catch (err) {
-        console.error("Error in scholarship fetching process:", err);
-      } finally {
-        setLoading(false);
+        setError("Failed to authenticate user. Please try logging in again.");
       }
     };
 
     getCurrentUser();
   }, []);
 
-  // Load BotPress chatbot scripts
+  // Fetch scholarships whenever studentId changes or when component mounts
   useEffect(() => {
-    // Create a window.botpressWebChat object if it doesn't exist
-    if (!window.botpressWebChat) {
-      window.botpressWebChat = {
-        init: function() {
-          // This will be overwritten when the script loads
-          console.log("BotPress initialization placeholder");
-        }
-      };
-    }
-
-    // Function to load a script with promise
-    const loadScript = (src) => {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = src;
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.body.appendChild(script);
-      });
-    };
-
-    // Load scripts in sequence
-    const loadBotPressScripts = async () => {
+    const fetchScholarships = async () => {
       try {
-        // First load the inject.js script
-        await loadScript("https://cdn.botpress.cloud/webchat/v2.2/inject.js");
-        console.log("BotPress inject.js loaded successfully");
+        setLoading(true);
         
-        // Then load the chatbot config script
-        await loadScript("https://files.bpcontent.cloud/2025/03/06/19/20250306190115-WCWOMQ1I.js");
-        console.log("BotPress chatbot config loaded successfully");
-      } catch (error) {
-        console.error("Failed to load BotPress scripts:", error);
+        // Fetch all scholarships from the database
+        const { data: scholarshipsData, error: scholarshipsError } = await supabase
+          .from('scholarships')
+          .select('*');
+        
+        if (scholarshipsError) throw scholarshipsError;
+        
+        // If student is logged in, fetch their applications to mark which scholarships they've applied to
+        let appliedScholarshipIds = [];
+        if (studentId) {
+          const { data: applications, error: appError } = await supabase
+            .from('scholarship_applications')
+            .select('*')
+            .eq('student_id', studentId);
+          
+          if (appError) throw appError;
+          appliedScholarshipIds = applications ? applications.map(app => app.scholarship_id) : [];
+        }
+        
+        // Mark scholarships that have been applied for
+        const processedScholarships = scholarshipsData.map(scholarship => ({
+          ...scholarship,
+          applied: appliedScholarshipIds.includes(scholarship.id)
+        }));
+        
+        setScholarships(processedScholarships || []);
+      } catch (err) {
+        console.error("Error fetching scholarships:", err);
+        setError("Failed to load scholarships. Please refresh the page.");
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadBotPressScripts();
+    fetchScholarships();
+    
+    // Set up real-time subscription to the scholarships table
+    const scholarshipsSubscription = supabase
+      .channel('scholarships-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'scholarships' }, 
+        fetchScholarships
+      )
+      .subscribe();
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      supabase.removeChannel(scholarshipsSubscription);
+    };
+  }, [studentId]);
+
+  // Load BotPress chatbot scripts dynamically
+  useEffect(() => {
+    const script1 = document.createElement("script");
+    script1.src = "https://cdn.botpress.cloud/webchat/v2.2/inject.js";
+    script1.async = true;
+    script1.onerror = () => console.error("Failed to load inject.js");
+
+    const script2 = document.createElement("script");
+    script2.src = "https://files.bpcontent.cloud/2025/03/06/19/20250306190115-WCWOMQ1I.js";
+    script2.async = true;
+    script2.onerror = () => console.error("Failed to load chatbot script");
+
+    document.body.appendChild(script1);
+    document.body.appendChild(script2);
 
     return () => {
-      // Optional: Clean up any BotPress related resources
-      if (window.botpressWebChat && window.botpressWebChat.onClose) {
-        try {
-          window.botpressWebChat.onClose();
-        } catch (err) {
-          console.error("Error closing BotPress chat:", err);
-        }
-      }
+      if (script1.parentNode) script1.parentNode.removeChild(script1);
+      if (script2.parentNode) script2.parentNode.removeChild(script2);
     };
   }, []);
 
-  // Since there's no scholarship_applications table, we'll modify the filter logic
+  // Filter scholarships based on active tab
   const filteredScholarships = activeTab === 'eligible'
-    ? scholarships // All scholarships are eligible since none are applied
+    ? (scholarships || []).filter(scholarship => !scholarship.applied)
     : activeTab === 'applied'
-      ? [] // No scholarships are applied since there's no applications table
-      : scholarships;
+      ? (scholarships || []).filter(scholarship => scholarship.applied)
+      : scholarships || [];
 
-  // Simplified apply function since there's no applications table
+  // Apply to scholarship
   const handleApply = async (id) => {
     if (!studentId) {
       alert("You must be logged in to apply");
@@ -142,21 +133,34 @@ const ScholarshipPage = () => {
     }
     
     try {
-      // Find the scholarship
+      // Update local state first for immediate UI feedback
+      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: true } : sch));
+      
+      // Get scholarship details for the notification
       const scholarship = scholarships.find(s => s.id === id);
-      if (!scholarship) {
-        throw new Error("Scholarship not found");
-      }
       
-      // Since there's no applications table, we'll just mark it as applied in the UI
-      setScholarships(prev => prev.map(sch => 
-        sch.id === id ? { ...sch, applied: true } : sch
-      ));
+      // Create an application record in the database
+      const { data, error } = await supabase
+        .from('scholarship_applications')
+        .insert([
+          { 
+            student_id: studentId, 
+            scholarship_id: id,
+            scholarship_name: scholarship.name,
+            status: 'pending',
+            applied_date: new Date().toISOString()
+          }
+        ]);
       
-      // Show a success message, but let the user know this is just UI feedback
-      alert("Application submitted successfully! (Note: This is a UI simulation as the applications database table doesn't exist yet)");
+      if (error) throw error;
+      
+      alert("Application submitted successfully!");
     } catch (error) {
       console.error("Error applying for scholarship:", error);
+      
+      // Revert the local state change if the database update failed
+      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: false } : sch));
+      
       alert("Failed to submit application. Please try again.");
     }
   };
@@ -168,22 +172,22 @@ const ScholarshipPage = () => {
         <div className="nav-left">
           <span className="nav-title">Student Portal</span>
         </div>
-        <div className="nav-right">
+      {/*}  <div className="nav-right">
           <div className="search-container">
             <input type="text" placeholder="Search" className="search-input" />
             <Search className="search-icon" />
           </div>
           <Bell className="nav-icon" color="#FFD700" />
           <Settings className="nav-icon" color="#4CAF50" />
-        </div>
+        </div>*/}
       </header>
 
       <div className="main-container">
         {/* Sidebar */}
         <aside className="sidebar">
-          <Link to="/Dashboard" className="nav-item1">
+          <a href="#" className="nav-item1">
             <Home className="menu-icon" color="white" />
-          </Link>
+          </a>
           <div className="profile-brief">
             <div className="avatar"></div>
           </div>
@@ -235,6 +239,8 @@ const ScholarshipPage = () => {
           <main className="main-content">
             {loading ? (
               <div className="loading-message">Loading scholarships...</div>
+            ) : error ? (
+              <div className="error-message">{error}</div>
             ) : filteredScholarships.length === 0 ? (
               <div className="no-scholarships-message">
                 {activeTab === 'eligible' ? 

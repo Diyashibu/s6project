@@ -126,15 +126,15 @@ const StudentPortal = () => {
         <div className="nav-left">
           <span className="nav-title">Student Portal</span>
         </div>
-        <div className="nav-right">
+    {/*   <div className="nav-right">
           <div className="search-container">
             <input type="text" placeholder="Search" className="search-input" />
             <Search className="search-icon" />
           </div>
           <Bell className="nav-icon" color="#FFD700" />
           <Settings className="nav-icon" color="#4CAF50" />
-        </div>
-      </header>
+        </div>  */}
+      </header> 
 
       <div className="main-container">
         {/* Sidebar */}

@@ -46,7 +46,6 @@ const AuthPage = () => {
     dob: "", 
     class: "", 
     total_activity_point: "",
-    unique_id: "", // This will be used for teacher login only
     gender: "", // New field for gender
     income: "" // New field for annual income
   });
@@ -88,10 +87,10 @@ const AuthPage = () => {
   
   const handleLogin = async () => {
     setLoading(true);
-    const { id, password, unique_id } = formData;
+    const { id, password } = formData;
 
-    // Admin shortcut - just type "123" as unique_id to access admin page
-    if (userType === "teacher" && unique_id === "123") {
+    // Admin shortcut - just type "MDLAD001" as id to access admin page
+    if (userType === "teacher" && id === "MDLAD001" && password === "123") {
       // Store admin information in localStorage
       localStorage.setItem('userId', 'MDLAD001');
       localStorage.setItem('userType', 'admin');
@@ -102,10 +101,10 @@ const AuthPage = () => {
       return;
     }
 
-    // Teacher login with class identifier verification
+    // Teacher login without requiring unique_id
     if (userType === "teacher") {
-      if (!id || !password || !unique_id) {
-        alert("Please enter KTU ID, password, and class unique ID.");
+      if (!id || !password) {
+        alert("Please enter KTU ID and password.");
         setLoading(false);
         return;
       }
@@ -130,23 +129,19 @@ const AuthPage = () => {
         return;
       }
       
-      // Then verify the class unique_id
-      const { data: classData, error: classError } = await supabase
+      // Default class for the teacher - first available or predefined
+      const { data: classData } = await supabase
         .from("class_identifiers")
         .select("*")
-        .eq("unique_id", unique_id)
+        .limit(1)
         .maybeSingle();
-
-      if (classError || !classData) {
-        alert("Invalid class unique ID.");
-        setLoading(false);
-        return;
-      }
+        
+      const classId = classData?.id || "default_class";
 
       // Store user information and redirect
       localStorage.setItem('userId', teacher.id);
       localStorage.setItem('userType', 'teacher');
-      localStorage.setItem('classId', classData.id);
+      localStorage.setItem('classId', classId);
       
       alert("Login successful!");
       navigate("/teachers");
@@ -154,7 +149,7 @@ const AuthPage = () => {
       return;
     }
 
-    // Student login - now using the same verification approach as teachers
+    // Student login
     if (userType === "student") {
       if (!id || !password) {
         alert("Please enter both KTU ID and password.");
@@ -507,21 +502,6 @@ const AuthPage = () => {
               variant="outlined"
               sx={{ mb: 2 }}
             />
-
-            {/* Class Unique ID field only for teacher login - not in signup 
-            {!showSignUp && userType === "teacher" && (
-              <TextField 
-                fullWidth 
-                margin="normal" 
-                label="Class Unique ID" 
-                name="unique_id" 
-                value={formData.unique_id} 
-                onChange={handleInputChange}
-                variant="outlined"
-                sx={{ mb: 2 }}
-                helperText="Enter class unique ID or '123' for admin access"
-              />
-            )}*/}
 
             {showSignUp && (
               <>

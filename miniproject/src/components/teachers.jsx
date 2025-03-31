@@ -34,6 +34,7 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isScholarshipModalOpen, setIsScholarshipModalOpen] = useState(false);
+  const [isScholarshipModalClose, setIsScholarshipModalClose] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -42,7 +43,33 @@ export default function TeacherDashboard() {
   const [currentClass, setCurrentClass] = useState(null);
   const [classError, setClassError] = useState("");
   const [showClassPrompt, setShowClassPrompt] = useState(true);
-
+  
+  const fetchUnverifiedCertificates = async (studentsList) => {
+    try {
+      const { data, error } = await supabase
+        .from("certificates")
+        .select("student_id")
+        .is("verified", false);
+  
+      if (error) throw error;
+  
+      const unverifiedCounts = data.reduce((acc, cert) => {
+        acc[cert.student_id] = (acc[cert.student_id] || 0) + 1;
+        return acc;
+      }, {});
+  
+      const updatedStudents = studentsList.map(student => ({
+        ...student,
+        unverifiedCertificates: unverifiedCounts[student.id] || 0
+      }));
+  
+      return updatedStudents;
+    } catch (err) {
+      console.error("Error fetching unverified certificates:", err);
+      return studentsList;
+    }
+  };
+  
   useEffect(() => {
     const fetchStudents = async () => {
       setLoading(true);
@@ -50,7 +77,6 @@ export default function TeacherDashboard() {
         const { data, error } = await supabase
           .from("student")
           .select("*");
-        
         if (error) {
           console.error("Error fetching students:", error.message);
         } else {
@@ -60,10 +86,17 @@ export default function TeacherDashboard() {
           const processedData = data.map(student => ({
             ...student,
             // Format the ID as KTU ID pattern (e.g., KTU1234)
-            formattedId: student.ktu_id || `KTU${String(student.id).padStart(4, '0')}`
+            formattedId: student.ktu_id || `${String(student.id).padStart(4, '0')}`,
+            unverifiedCertificates: 0
           }));
           
+          // Store all students but don't set as current students yet
           setAllStudents(processedData || []);
+          
+          // We'll set students based on class selection
+          // Only fetch certificate data for all students initially
+          const studentsWithCertificates = await fetchUnverifiedCertificates(processedData);
+          setAllStudents(studentsWithCertificates);
         }
       } catch (err) {
         console.error("Exception fetching students:", err);
@@ -74,7 +107,7 @@ export default function TeacherDashboard() {
     
     fetchStudents();
   }, []);
-
+  
   // Fetch scholarship applications count for each student
   useEffect(() => {
     const fetchScholarshipCounts = async () => {
@@ -97,11 +130,12 @@ export default function TeacherDashboard() {
         });
         
         // Update students with application counts
-        setStudents(students.map(student => ({
+        const updatedStudents = students.map(student => ({
           ...student,
           newApplications: applicationCounts[student.id] || 0
-        })));
+        }));
         
+        setStudents(updatedStudents);
       } catch (err) {
         console.error("Error fetching scholarship applications:", err);
       }
@@ -110,9 +144,7 @@ export default function TeacherDashboard() {
     if (currentClass && activeTab === 1) {
       fetchScholarshipCounts();
     }
-  }, [students, currentClass, activeTab]);
-
-  
+  }, [currentClass, activeTab]);
 
   const handleTabChange = (index) => {
     setActiveTab(index);
@@ -135,7 +167,7 @@ export default function TeacherDashboard() {
   };
 
   const handleScholarshipModalClose = () => {
-    setIsScholarshipModalOpen(false);
+    setIsScholarshipModalClose(false);
     setTimeout(() => {
       setSelectedStudent(null);
     }, 300);
@@ -145,32 +177,38 @@ export default function TeacherDashboard() {
   const verifyClassId = async () => {
     setLoading(true);
     setClassError("");
-    
+  
     try {
-      // Verify the unique ID against class_identifiers table
+      // Verify class ID
       const { data, error } = await supabase
         .from("class_identifiers")
         .select("*")
         .eq("unique_id", classUniqueId)
         .single();
-      
+  
       if (error || !data) {
         setClassError("Invalid class ID. Please try again.");
         setLoading(false);
         return;
       }
-      
-      // Set the current class and filter students
+  
+      console.log("Verified class:", data);
+  
+      // Set current class
       setCurrentClass(data);
-      
-      // Filter students by the selected class
+  
+      console.log("All students before filtering:", allStudents);
+  
+      // Filter students by class
       const filteredStudents = allStudents.filter(
-        student => student.class === data.class_name
+        (student) => student.class === data.class_name
       );
+  
+      console.log("Filtered Students:", filteredStudents);
       
+      // We need to update this to make sure we only show students from the current class
       setStudents(filteredStudents);
       setShowClassPrompt(false);
-      
     } catch (err) {
       console.error("Error verifying class ID:", err);
       setClassError("An error occurred. Please try again.");
@@ -178,7 +216,7 @@ export default function TeacherDashboard() {
       setLoading(false);
     }
   };
-
+  
   // Reset class function
   const resetClass = () => {
     setCurrentClass(null);
@@ -324,6 +362,12 @@ export default function TeacherDashboard() {
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                   <CircularProgress />
                 </Box>
+              ) : students.length === 0 ? (
+                <Box sx={{ p: 4, textAlign: 'center' }}>
+                  <Typography color="text.secondary">
+                    No students found in this class. Please verify the class ID.
+                  </Typography>
+                </Box>
               ) : (
                 <Table>
                   <TableHead sx={{ bgcolor: '#f9f9f9' }}>
@@ -332,54 +376,62 @@ export default function TeacherDashboard() {
                       <TableCell>KTU ID</TableCell>
                       <TableCell>NAME</TableCell>
                       {activeTab === 0 ? (
-                        <TableCell>TOTAL ACTIVITY POINTS</TableCell>
+                        <>
+                          <TableCell>TOTAL ACTIVITY POINTS</TableCell>
+                          <TableCell>CERTIFICATE STATUS</TableCell>
+                        </>
                       ) : (
                         <TableCell>SCHOLARSHIP APPLICATIONS</TableCell>
                       )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {students.length > 0 ? (
-                      students.map((student, index) => (
-                        <TableRow 
-                          key={student.id} 
-                          onClick={() => handleStudentClick(student)} 
-                          sx={{ 
-                            cursor: "pointer",
-                            '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } 
-                          }}
-                        >
-                          <TableCell>{index + 1}</TableCell>
-                          <TableCell>{student.formattedId || `KTU${String(student.id).padStart(4, '0')}`}</TableCell>
-                          <TableCell sx={{ color: 'primary.main', fontWeight: 'medium' }}>
-                            {student.name}
-                          </TableCell>
-                          {activeTab === 0 ? (
+                    {students.map((student, index) => (
+                      <TableRow 
+                        key={student.id} 
+                        onClick={() => handleStudentClick(student)} 
+                        sx={{ cursor: "pointer", '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
+                      >
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{student.formattedId || `KTU${String(student.id).padStart(4, '0')}`}</TableCell>
+                        <TableCell sx={{ color: 'primary.main', fontWeight: 'medium' }}>
+                          {student.name}
+                        </TableCell>
+                        
+                        {activeTab === 0 ? (
+                          <>
                             <TableCell>{student.total_activity_point || 0}</TableCell>
-                          ) : (
                             <TableCell>
-                              {student.newApplications > 0 ? (
+                              {student.unverifiedCertificates > 0 ? (
                                 <Badge 
                                   color="error" 
-                                  badgeContent={student.newApplications}
+                                  badgeContent={student.unverifiedCertificates}
                                   sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem' } }}
                                 >
-                                  <Box component="span" sx={{ pr: 2 }}>Pending Review</Box>
+                                  <Box component="span" sx={{ pr: 2 }}>Pending</Box>
                                 </Badge>
                               ) : (
-                                "No Pending Applications"
+                                "All Verified"
                               )}
                             </TableCell>
-                          )}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
-                          <Typography>No students found in this class</Typography>
-                        </TableCell>
+                          </>
+                        ) : (
+                          <TableCell>
+                            {student.newApplications > 0 ? (
+                              <Badge 
+                                color="error" 
+                                badgeContent={student.newApplications}
+                                sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem' } }}
+                              >
+                                <Box component="span" sx={{ pr: 2 }}>Pending</Box>
+                              </Badge>
+                            ) : (
+                              "No Pending Applications"
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
-                    )}
+                    ))}
                   </TableBody>
                 </Table>
               )}

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import React, {useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Upload, FileText, X, CheckCircle } from 'lucide-react';
 import './Activity.css';
 import { supabase } from '../supabase'; // Make sure to import your Supabase client
@@ -16,18 +16,16 @@ const ActivityPoints = () => {
   // New state for upload success message
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
   const [userId, setUserId] = useState(null);
-  // Mock activity points data
-  const activityData = [
-    { id: 1, activity: "IEEE Conference Participation", date: "2024-11-10", points: 15, certificate: "ieee_cert.pdf" },
-    { id: 2, activity: "Hackathon Winner", date: "2024-09-22", points: 25, certificate: "hackathon_cert.pdf" },
-    { id: 3, activity: "Community Service", date: "2024-10-05", points: 10, certificate: "community_cert.pdf" },
-    { id: 4, activity: "Workshop Organizer", date: "2024-08-15", points: 20, certificate: "workshop_cert.pdf" },
-    { id: 5, activity: "Research Paper Publication", date: "2024-07-30", points: 30, certificate: "research_cert.pdf" }
-  ];
+  const [certificateData, setCertificateData] = useState([]);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState(null);
 
-  // Calculate total points and percentage
+  // Get verified certificates only
+  const verifiedCertificates = certificateData.filter(item => item.status === "Verified");
+
+  // Calculate total points and percentage based on verified certificates only
   const totalPointsRequired = 100;
-  const earnedPoints = activityData.reduce((sum, item) => sum + item.points, 0);
+  const earnedPoints = verifiedCertificates.reduce((sum, item) => sum + item.points, 0);
   const completionPercentage = Math.min(Math.round((earnedPoints / totalPointsRequired) * 100), 100);
   
   // Fetch certificates from Supabase on component mount
@@ -42,14 +40,15 @@ const ActivityPoints = () => {
       // Optional redirect to login page
     }
   }, []);
+
   // Function to fetch certificates from Supabase
-  const fetchCertificates = async () => {
+  const fetchCertificates = async (userId) => {
     try {
-      // Fetch list of files from the certuploads bucket
+      // Fetch certificates from the certificates table
       const { data, error } = await supabase
-        .storage
-        .from('certuploads')
-        .list();
+        .from('certificates')
+        .select('*')
+        .eq('student_id', userId);
       
       if (error) {
         console.error("Error fetching certificates:", error);
@@ -57,38 +56,44 @@ const ActivityPoints = () => {
       }
       
       if (data) {
-        // Map the data to our uploadedFiles format
-        const formattedFiles = data.map((file, index) => ({
+        // Enhance certificate data with points and activities
+        const enhancedData = data.map((cert, index) => ({
           id: index + 1,
-          name: file.name,
-          date: new Date(file.created_at || Date.now()).toISOString().split('T')[0],
-          status: "Pending", // Default status
-          path: file.name
+          name: cert.certificate.split('/').pop() || `Certificate ${index + 1}`,
+          date: new Date(cert.created_at || Date.now()).toISOString().split('T')[0],
+          points: cert.activity_point || calculatePoints(cert.certificate),
+          certificate: cert.certificate,
+          status: cert.verified ? "Verified" : "Pending"
         }));
         
-        setUploadedFiles(formattedFiles);
+        setCertificateData(enhancedData);
+        setUploadedFiles(enhancedData);
       }
     } catch (error) {
       console.error("Failed to fetch certificates:", error);
     }
   };
-  /*const fetchStudentData = async () => {
-    const userId = localStorage.getItem('userId');
-    
-    if (!userId) {
-      // Redirect to login if no user ID found
-      window.location.href = '/';
-      return;
-    }
-    fetchStudentData();
-  };*/
+
+  // Helper function to calculate points based on certificate type
+  const calculatePoints = (certificatePath) => {
+    // This is a placeholder logic - you should implement your own point calculation
+    const fileName = certificatePath.toLowerCase();
+    if (fileName.includes('ieee') || fileName.includes('conference')) return 15;
+    if (fileName.includes('hackathon')) return 25;
+    if (fileName.includes('community') || fileName.includes('service')) return 10;
+    if (fileName.includes('workshop')) return 20;
+    if (fileName.includes('research') || fileName.includes('paper')) return 30;
+    return 10; // Default points
+  };
+
   // Handle file selection
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setSelectedFiles((prevFiles) => [...prevFiles, ...files]);
   };
+
   const handleUpload = async (e) => {
-    const file = e.target.files?.[0]; // ✅ Optional chaining added to avoid undefined error
+    const file = e.target.files?.[0]; // Optional chaining to avoid undefined error
   
     if (!file) {
       console.log("No file selected");
@@ -104,32 +109,46 @@ const ActivityPoints = () => {
       .from('certuploads')
       .upload(uniqueFileName, file);
 
-      const { data: urlData } = supabase
-        .storage
-        .from('certuploads')
-        .getPublicUrl(uniqueFileName);
+    if (error) {
+      console.error("Upload failed:", error.message);
+      return;
+    }
+
+    const { data: urlData } = supabase
+      .storage
+      .from('certuploads')
+      .getPublicUrl(uniqueFileName);
 
     const fileUrl = urlData.publicUrl;
 
     // Insert into 'certificates' table
     const { error: insertError } = await supabase
-        .from('certificates')
-        .insert([{ student_id: userId, certificate: fileUrl }]);
+      .from('certificates')
+      .insert([{ 
+        student_id: userId, 
+        certificate: fileUrl,
+        activity_point: calculatePoints(file.name)
+      }]);
     
-    if (error) {
-      console.error("Upload failed:", error.message);
+    if (insertError) {
+      console.error("Failed to save certificate record:", insertError);
     } else {
-      console.log("File uploaded successfully:", data);
+      console.log("File uploaded successfully");
+      setShowUploadSuccess(true);
+      setTimeout(() => setShowUploadSuccess(false), 3000);
+      
+      // Refresh the certificates list
+      fetchCertificates(userId);
     }
-    
-
-  
-    console.log(file); // 🎯 File is uploaded successfully
   };
-  
   
   const removeFile = (index) => {
     setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  const handleViewCertificate = (cert) => {
+    setSelectedCertificate(cert);
+    setShowCertificateModal(true);
   };
 
   return (
@@ -210,110 +229,130 @@ const ActivityPoints = () => {
               </div>
               
               {/* Certificate Upload Section */}
-<div className="certificate-upload-section">
-  <div className="upload-card">
-    <h2 className="card-title">Upload Certificates</h2>
-    <p className="upload-description">
-      Upload certificates for activity points verification. Supported formats: PDF, JPG, PNG (max 5MB each)
-    </p>
+              <div className="certificate-upload-section">
+                <div className="upload-card">
+                  <h2 className="card-title">Upload Certificates</h2>
+                  <p className="upload-description">
+                    Upload certificates for activity points verification. Supported formats: PDF, JPG, PNG (max 5MB each)
+                  </p>
 
-    {/* Upload Success Message */}
-    {showUploadSuccess && (
-      <div className="upload-success-message">
-        <CheckCircle size={18} color="#4CAF50" />
-        <span>Files successfully uploaded! Waiting for verification.</span>
-      </div>
-    )}
-
-    {/* File Input for Upload */}
-    <input 
-      type="file"
-      accept=".pdf,.jpg,.png"
-      onChange={handleUpload}
-      style={{ display: 'none' }}
-      ref={fileInputRef}
-    />
-
-    {/* Upload Button */}
-    <button 
-      className="upload-btn" 
-      onClick={() => fileInputRef.current.click()}
-    >
-      <Upload size={18} />
-      Upload Certificates
-    </button>
-
-    {/* Uploaded Files Section - Only shown if there are files */}
-    {uploadedFiles.length > 0 && (
-      <div className="uploaded-files-section">
-        <h3 className="uploaded-files-title">Uploaded Files</h3>
-        <div className="uploaded-files-table-container">
-          <table className="uploaded-files-table">
-            <thead>
-              <tr>
-                <th>File Name</th>
-                <th>Upload Date</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {uploadedFiles.map(file => (
-                <tr key={file.id} className={`status-${file.status.toLowerCase()}`}>
-                  <td>
-                    <div className="file-info">
-                      <FileText size={16} />
-                      <span>{file.name}</span>
+                  {/* Upload Success Message */}
+                  {showUploadSuccess && (
+                    <div className="upload-success-message">
+                      <CheckCircle size={18} color="#4CAF50" />
+                      <span>Files successfully uploaded! Waiting for verification.</span>
                     </div>
-                  </td>
-                  <td>{file.date}</td>
-                  <td>
-                    <span className={`status-badge status-${file.status.toLowerCase()}`}>
-                      {file.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )}
-  </div>
-</div>
+                  )}
 
+                  {/* File Input for Upload */}
+                  <input 
+                    type="file"
+                    accept=".pdf,.jpg,.png"
+                    onChange={handleUpload}
+                    style={{ display: 'none' }}
+                    ref={fileInputRef}
+                  />
+
+                  {/* Upload Button */}
+                  <button 
+                    className="upload-btn" 
+                    onClick={() => fileInputRef.current.click()}
+                  >
+                    <Upload size={18} />
+                    Upload Certificates
+                  </button>
+
+                  {/* Uploaded Files Section - Only shown if there are files */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="uploaded-files-section">
+                      <h3 className="uploaded-files-title">Uploaded Files</h3>
+                      <div className="uploaded-files-table-container">
+                        <table className="uploaded-files-table">
+                          <thead>
+                            <tr>
+                              <th>File Name</th>
+                              <th>Upload Date</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {uploadedFiles.map(file => (
+                              <tr key={file.id} className={`status-${file.status.toLowerCase()}`}>
+                                <td>
+                                  <div className="file-info">
+                                    <FileText size={16} />
+                                    <span>{file.name}</span>
+                                  </div>
+                                </td>
+                                <td>{file.date}</td>
+                                <td>
+                                  <span className={`status-badge status-${file.status.toLowerCase()}`}>
+                                    {file.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
               
-              {/* Activity Points Table Section */}
+              {/* Activity Points Table Section - UPDATED TO SHOW ONLY VERIFIED CERTIFICATES */}
               <div className="activity-table-section">
                 <div className="table-card">
-                  <h2 className="card-title">Activity Points Details</h2>
+                  <h2 className="card-title">Activity Points Details (Verified Only)</h2>
                   <div className="table-container">
                     <table className="activity-table">
                       <thead>
                         <tr>
-                          <th>Activity</th>
+                          <th>Sl No.</th>
                           <th>Date</th>
                           <th>Points</th>
                           <th>Certificate</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {activityData.map(item => (
-                          <tr key={item.id}>
-                            <td>{item.activity}</td>
-                            <td>{new Date(item.date).toLocaleDateString()}</td>
-                            <td>{item.points}</td>
-                            <td>
-                              <button className="view-cert-btn">
-                                <FileText size={16} />
-                                View
-                              </button>
-                            </td>
+                        {verifiedCertificates.length > 0 ? (
+                          verifiedCertificates.map((item, index) => (
+                            <tr key={item.id}>
+                              <td>{index + 1}</td>
+                              <td>{new Date(item.date).toLocaleDateString()}</td>
+                              <td>{item.points}</td>
+                              <td>
+                                <button 
+                                  className="view-cert-btn"
+                                  onClick={() => handleViewCertificate(item)}
+                                >
+                                  <div className="certificate-thumbnail">
+                                    {item.certificate && (
+                                      <img 
+                                        src={item.certificate} 
+                                        alt="Certificate thumbnail" 
+                                        className="cert-thumbnail" 
+                                        onError={(e) => {
+                                          e.target.onError = null;
+                                          e.target.src = "/placeholder-certificate.png";
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="4" className="no-data-message">No verified certificates found</td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan="2" className="total-label">Total Points Earned:</td>
+                          <td colSpan="2" className="total-label">Total Verified Points Earned:</td>
                           <td colSpan="2" className="total-value">{earnedPoints}</td>
                         </tr>
                       </tfoot>
@@ -398,6 +437,36 @@ const ActivityPoints = () => {
               >
                 Upload Files
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Certificate Modal */}
+      {showCertificateModal && selectedCertificate && (
+        <div className="modal-overlay">
+          <div className="certificate-modal">
+            <div className="modal-header">
+              <h3>Certificate Preview</h3>
+              <button 
+                className="close-btn" 
+                onClick={() => setShowCertificateModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="certificate-preview">
+              <div className="certificate-container">
+                <img 
+                  src={selectedCertificate.certificate} 
+                  alt="Certificate" 
+                  className="certificate-image"
+                  onError={(e) => {
+                    e.target.onError = null;
+                    e.target.src = "/placeholder-certificate.png";
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>

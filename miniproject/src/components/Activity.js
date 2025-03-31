@@ -132,37 +132,6 @@ const ActivityPoints = () => {
     setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
   };
 
-  // Handle view certificate
-  const handleViewCertificate = async (certificate) => {
-    try {
-      const certificateId = typeof certificate === 'object' ? certificate.id : certificate;
-      
-      // Fetch the certificate URL from Supabase
-      const { data, error } = await supabase
-        .from('certificates')
-        .select('certificate')
-        .eq('certificate_id', certificateId)
-        .single();
-      
-      if (error) throw error;
-      
-      if (data && data.certificate) {
-        // Open the certificate URL in a new tab
-        window.open(data.certificate, '_blank');
-      } else {
-        throw new Error('Certificate URL not found');
-      }
-    } catch (err) {
-      console.error('Error viewing certificate:', err);
-      setError('Failed to load certificate. Please try again later.');
-    }
-  };
-  
-  // Clear error message
-  const clearError = () => {
-    setError(null);
-  };
-
   return (
     <div className="portal-container">
       {/* Top Navigation Bar */}
@@ -219,19 +188,6 @@ const ActivityPoints = () => {
           
           {/* Main Content */}
           <main className="main-content">
-            {error && (
-              <div className="error-message">
-                <X size={18} color="#F44336" />
-                <span>{error}</span>
-                <button 
-                  className="dismiss-error"
-                  onClick={clearError}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-            
             <div className="activity-dashboard">
               {/* Progress Section */}
               <div className="activity-progress-section">
@@ -331,46 +287,37 @@ const ActivityPoints = () => {
                 <div className="table-card">
                   <h2 className="card-title">Activity Points Details</h2>
                   <div className="table-container">
-                    {activityData.length > 0 ? (
-                      <table className="activity-table">
-                        <thead>
-                          <tr>
-                            <th>Activity</th>
-                            <th>Date</th>
-                            <th>Points</th>
-                            <th>Certificate</th>
+                    <table className="activity-table">
+                      <thead>
+                        <tr>
+                          <th>Activity</th>
+                          <th>Date</th>
+                          <th>Points</th>
+                          <th>Certificate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activityData.map(item => (
+                          <tr key={item.id}>
+                            <td>{item.activity}</td>
+                            <td>{new Date(item.date).toLocaleDateString()}</td>
+                            <td>{item.points}</td>
+                            <td>
+                              <button className="view-cert-btn">
+                                <FileText size={16} />
+                                View
+                              </button>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {activityData.map(item => (
-                            <tr key={item.id}>
-                              <td>{item.activity}</td>
-                              <td>{new Date(item.date).toLocaleDateString()}</td>
-                              <td>{item.points}</td>
-                              <td>
-                                <button 
-                                  className="view-cert-btn"
-                                  onClick={() => handleViewCertificate(item)}
-                                >
-                                  <FileText size={16} />
-                                  View
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr>
-                            <td colSpan="2" className="total-label">Total Points Earned:</td>
-                            <td colSpan="2" className="total-value">{earnedPoints}</td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    ) : (
-                      <div className="no-data-message">
-                        <p>No verified activities yet. Upload certificates to earn activity points.</p>
-                      </div>
-                    )}
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan="2" className="total-label">Total Points Earned:</td>
+                          <td colSpan="2" className="total-value">{earnedPoints}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
                 </div>
               </div>
@@ -398,7 +345,6 @@ const ActivityPoints = () => {
                   type="file" 
                   id="certificate-upload" 
                   multiple 
-                  accept=".pdf,.jpg,.jpeg,.png" 
                   onChange={handleFileChange}
                   className="file-input"
                   accept=".pdf,.jpg,.jpeg,.png"
@@ -407,7 +353,6 @@ const ActivityPoints = () => {
                   <Upload size={20} />
                   Select Files
                 </label>
-                <p className="file-types">Supported: PDF, JPG, PNG (max 5MB each)</p>
               </div>
               
               {selectedFiles.length > 0 && (
@@ -417,7 +362,6 @@ const ActivityPoints = () => {
                     {selectedFiles.map((file, index) => (
                       <li key={index} className="file-item">
                         <span className="file-name">{file.name}</span>
-                        <span className="file-size">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
                         <button 
                           className="remove-file-btn" 
                           onClick={() => removeFile(index)}
@@ -450,7 +394,7 @@ const ActivityPoints = () => {
               <button 
                 className="upload-confirm-btn" 
                 onClick={handleUpload}
-                disabled={selectedFiles.length === 0 || uploadProgress > 0}
+                disabled={selectedFiles.length === 0}
               >
                 Upload Files
               </button>

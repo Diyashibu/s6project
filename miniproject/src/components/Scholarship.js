@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home } from 'lucide-react';
+import { Bell, Search, Settings, User, Activity, Award, LogOut, Home } from 'lucide-react';
 import { supabase } from '../supabase'; 
 import './Scholarship.css';
 
@@ -11,9 +11,8 @@ const ScholarshipPage = () => {
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState(null);
 
-  // Fetch user information and scholarships from Supabase
+  // Fetch user information and scholarships
   useEffect(() => {
-    // Get current authenticated user
     const getCurrentUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -25,80 +24,117 @@ const ScholarshipPage = () => {
             .eq('auth_id', user.id)
             .single();
           
-          if (studentError) throw studentError;
+          if (studentError) {
+            console.error("Error fetching student data:", studentError);
+            // Continue with fetching scholarships even if student data has an error
+          }
+          
           if (studentData) {
             setStudentId(studentData.id);
           }
         }
+        
+        // Fetch scholarships regardless of user authentication status
+        fetchScholarships();
       } catch (err) {
         console.error("Error getting current user:", err);
+        // Continue with fetching scholarships even if getting user fails
+        fetchScholarships();
       }
     };
 
     const fetchScholarships = async () => {
       try {
+        console.log("Fetching all scholarships");
         const { data, error } = await supabase.from('scholarships').select('*');
-        if (error) throw error;
         
-        // Also fetch student applications to mark applied scholarships
-        const { data: applications, error: appError } = await supabase
-          .from('scholarship_applications')
-          .select('*')
-          .eq('student_id', studentId);
+        if (error) {
+          console.error("Error fetching scholarships:", error);
+          setLoading(false);
+          return;
+        }
         
-        if (appError) throw appError;
+        console.log("Scholarships fetched:", data ? data.length : 0);
         
-        // Mark scholarships that have been applied for
-        const appliedScholarshipIds = applications ? applications.map(app => app.scholarship_id) : [];
-        
+        // Since scholarship_applications table doesn't exist, 
+        // we'll set all scholarships as not applied
         const processedScholarships = data.map(scholarship => ({
           ...scholarship,
-          applied: appliedScholarshipIds.includes(scholarship.id)
+          applied: false // No applications table, so no scholarships are applied for
         }));
         
         setScholarships(processedScholarships || []);
       } catch (err) {
-        console.error("Error fetching scholarships:", err);
+        console.error("Error in scholarship fetching process:", err);
       } finally {
         setLoading(false);
       }
     };
 
     getCurrentUser();
-    if (studentId) {
-      fetchScholarships();
-    }
-  }, [studentId]);
+  }, []);
 
-  // Load BotPress chatbot scripts dynamically
+  // Load BotPress chatbot scripts
   useEffect(() => {
-    const script1 = document.createElement("script");
-    script1.src = "https://cdn.botpress.cloud/webchat/v2.2/inject.js";
-    script1.async = true;
-    script1.onerror = () => console.error("Failed to load inject.js");
+    // Create a window.botpressWebChat object if it doesn't exist
+    if (!window.botpressWebChat) {
+      window.botpressWebChat = {
+        init: function() {
+          // This will be overwritten when the script loads
+          console.log("BotPress initialization placeholder");
+        }
+      };
+    }
 
-    const script2 = document.createElement("script");
-    script2.src = "https://files.bpcontent.cloud/2025/03/06/19/20250306190115-WCWOMQ1I.js";
-    script2.async = true;
-    script2.onerror = () => console.error("Failed to load chatbot script");
+    // Function to load a script with promise
+    const loadScript = (src) => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+    };
 
-    document.body.appendChild(script1);
-    document.body.appendChild(script2);
+    // Load scripts in sequence
+    const loadBotPressScripts = async () => {
+      try {
+        // First load the inject.js script
+        await loadScript("https://cdn.botpress.cloud/webchat/v2.2/inject.js");
+        console.log("BotPress inject.js loaded successfully");
+        
+        // Then load the chatbot config script
+        await loadScript("https://files.bpcontent.cloud/2025/03/06/19/20250306190115-WCWOMQ1I.js");
+        console.log("BotPress chatbot config loaded successfully");
+      } catch (error) {
+        console.error("Failed to load BotPress scripts:", error);
+      }
+    };
+
+    loadBotPressScripts();
 
     return () => {
-      if (script1.parentNode) script1.parentNode.removeChild(script1);
-      if (script2.parentNode) script2.parentNode.removeChild(script2);
+      // Optional: Clean up any BotPress related resources
+      if (window.botpressWebChat && window.botpressWebChat.onClose) {
+        try {
+          window.botpressWebChat.onClose();
+        } catch (err) {
+          console.error("Error closing BotPress chat:", err);
+        }
+      }
     };
   }, []);
 
-  // Filter scholarships based on active tab
+  // Since there's no scholarship_applications table, we'll modify the filter logic
   const filteredScholarships = activeTab === 'eligible'
-    ? (scholarships || []).filter(scholarship => !scholarship.applied)
+    ? scholarships // All scholarships are eligible since none are applied
     : activeTab === 'applied'
-      ? (scholarships || []).filter(scholarship => scholarship.applied)
-      : scholarships || [];
+      ? [] // No scholarships are applied since there's no applications table
+      : scholarships;
 
-  // Apply to scholarship
+  // Simplified apply function since there's no applications table
   const handleApply = async (id) => {
     if (!studentId) {
       alert("You must be logged in to apply");
@@ -106,34 +142,21 @@ const ScholarshipPage = () => {
     }
     
     try {
-      // Update local state first for immediate UI feedback
-      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: true } : sch));
-      
-      // Get scholarship details for the notification
+      // Find the scholarship
       const scholarship = scholarships.find(s => s.id === id);
+      if (!scholarship) {
+        throw new Error("Scholarship not found");
+      }
       
-      // Create an application record in the database
-      const { data, error } = await supabase
-        .from('scholarship_applications')
-        .insert([
-          { 
-            student_id: studentId, 
-            scholarship_id: id,
-            scholarship_name: scholarship.name,
-            status: 'pending',
-            applied_date: new Date().toISOString()
-          }
-        ]);
+      // Since there's no applications table, we'll just mark it as applied in the UI
+      setScholarships(prev => prev.map(sch => 
+        sch.id === id ? { ...sch, applied: true } : sch
+      ));
       
-      if (error) throw error;
-      
-      alert("Application submitted successfully!");
+      // Show a success message, but let the user know this is just UI feedback
+      alert("Application submitted successfully! (Note: This is a UI simulation as the applications database table doesn't exist yet)");
     } catch (error) {
       console.error("Error applying for scholarship:", error);
-      
-      // Revert the local state change if the database update failed
-      setScholarships(prev => prev.map(sch => sch.id === id ? { ...sch, applied: false } : sch));
-      
       alert("Failed to submit application. Please try again.");
     }
   };
@@ -158,9 +181,9 @@ const ScholarshipPage = () => {
       <div className="main-container">
         {/* Sidebar */}
         <aside className="sidebar">
-          <a href="#" className="nav-item1">
+          <Link to="/Dashboard" className="nav-item1">
             <Home className="menu-icon" color="white" />
-          </a>
+          </Link>
           <div className="profile-brief">
             <div className="avatar"></div>
           </div>

@@ -46,12 +46,15 @@ const AuthPage = () => {
     dob: "", 
     class: "", 
     total_activity_point: "",
-    unique_id: "" // This will be used for teacher login only
+    unique_id: "", // This will be used for teacher login only
+    gender: "", // New field for gender
+    income: "" // New field for annual income
   });
   const [resetData, setResetData] = useState({ id: "", dob: "", newPassword: "", confirmPassword: "" });
 
   const departments = ["Computer Science", "Electronics", "Electrical", "Biomedical", "Applied Science", "Mechanical"];
   const classes = ["CSA", "CSB", "CSC", "CSBS", "ECA", "ECB", "EEE", "EB", "MECH"];
+  const genders = ["F", "M", "Other"]; // Options for gender dropdown
 
   const handleUserTypeChange = (event) => setUserType(event.target.value);
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -195,9 +198,17 @@ const AuthPage = () => {
 
   const handleSignUp = async () => {
     setLoading(true);
-    const { id, name, password, dob, dept, position, class: studentClass, total_activity_point } = formData;
+    const { id, name, password, dob, dept, position, class: studentClass, total_activity_point, gender, income } = formData;
+    
     if (!id || !name || !password || !dob) {
       alert("Please fill all required fields.");
+      setLoading(false);
+      return;
+    }
+
+    // For student signup, make sure gender is selected
+    if (userType === "student" && !gender) {
+      alert("Please select your gender.");
       setLoading(false);
       return;
     }
@@ -221,7 +232,16 @@ const AuthPage = () => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const entry = userType === "teacher"
       ? { id, name, dept, position, dob, password: hashedPassword }
-      : { id, name, class: studentClass, total_activity_point, dob, password: hashedPassword };
+      : { 
+          id, 
+          name, 
+          class: studentClass, 
+          total_activity_point, 
+          dob, 
+          password: hashedPassword, 
+          gender, // Add gender to the student entry
+          income: income ? parseFloat(income) : null // Add income to the student entry
+        };
 
     const { error: insertError } = await supabase.from(table).insert([entry]);
 
@@ -571,6 +591,34 @@ const AuthPage = () => {
                         ))}
                       </Select>
                     </FormControl>
+                    
+                    {/* New Gender dropdown for students */}
+                    <FormControl fullWidth margin="normal" variant="outlined" sx={{ mb: 2 }}>
+                      <InputLabel>Gender</InputLabel>
+                      <Select 
+                        name="gender" 
+                        value={formData.gender} 
+                        onChange={handleInputChange}
+                        label="Gender"
+                      >
+                        {genders.map((gender) => (
+                          <MenuItem key={gender} value={gender}>{gender}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {/* New Annual Income field for students */}
+                    <TextField 
+                      fullWidth 
+                      margin="normal" 
+                      label="Annual Income" 
+                      name="income" 
+                      type="number"
+                      value={formData.income} 
+                      onChange={handleInputChange}
+                      variant="outlined"
+                      sx={{ mb: 2 }}
+                    />
                     
                     <TextField 
                       fullWidth 

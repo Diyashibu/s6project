@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home } from 'lucide-react';
-import { supabase } from '../supabase'; 
+import { Bell, Search, Settings, User, Activity, Award, LogOut, Home } from 'lucide-react';
+import { supabase } from '../supabase'; // Ensure this is correctly set up
 import './Scholarship.css';
 
 const ScholarshipPage = () => {
@@ -10,6 +10,7 @@ const ScholarshipPage = () => {
   const [activeTab, setActiveTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState(null);
+  const [error, setError] = useState(null);
 
   // Fetch user information and scholarships from Supabase
   useEffect(() => {
@@ -32,26 +33,40 @@ const ScholarshipPage = () => {
         }
       } catch (err) {
         console.error("Error getting current user:", err);
+        setError("Failed to authenticate user. Please try logging in again.");
       }
     };
 
+    getCurrentUser();
+  }, []);
+
+  // Fetch scholarships whenever studentId changes or when component mounts
+  useEffect(() => {
     const fetchScholarships = async () => {
       try {
-        const { data, error } = await supabase.from('scholarships').select('*');
-        if (error) throw error;
+        setLoading(true);
         
-        // Also fetch student applications to mark applied scholarships
-        const { data: applications, error: appError } = await supabase
-          .from('scholarship_applications')
-          .select('*')
-          .eq('student_id', studentId);
+        // Fetch all scholarships from the database
+        const { data: scholarshipsData, error: scholarshipsError } = await supabase
+          .from('scholarships')
+          .select('*');
         
-        if (appError) throw appError;
+        if (scholarshipsError) throw scholarshipsError;
+        
+        // If student is logged in, fetch their applications to mark which scholarships they've applied to
+        let appliedScholarshipIds = [];
+        if (studentId) {
+          const { data: applications, error: appError } = await supabase
+            .from('scholarship_applications')
+            .select('*')
+            .eq('student_id', studentId);
+          
+          if (appError) throw appError;
+          appliedScholarshipIds = applications ? applications.map(app => app.scholarship_id) : [];
+        }
         
         // Mark scholarships that have been applied for
-        const appliedScholarshipIds = applications ? applications.map(app => app.scholarship_id) : [];
-        
-        const processedScholarships = data.map(scholarship => ({
+        const processedScholarships = scholarshipsData.map(scholarship => ({
           ...scholarship,
           applied: appliedScholarshipIds.includes(scholarship.id)
         }));
@@ -59,15 +74,27 @@ const ScholarshipPage = () => {
         setScholarships(processedScholarships || []);
       } catch (err) {
         console.error("Error fetching scholarships:", err);
+        setError("Failed to load scholarships. Please refresh the page.");
       } finally {
         setLoading(false);
       }
     };
 
-    getCurrentUser();
-    if (studentId) {
-      fetchScholarships();
-    }
+    fetchScholarships();
+    
+    // Set up real-time subscription to the scholarships table
+    const scholarshipsSubscription = supabase
+      .channel('scholarships-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'scholarships' }, 
+        fetchScholarships
+      )
+      .subscribe();
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      supabase.removeChannel(scholarshipsSubscription);
+    };
   }, [studentId]);
 
   // Load BotPress chatbot scripts dynamically
@@ -212,6 +239,8 @@ const ScholarshipPage = () => {
           <main className="main-content">
             {loading ? (
               <div className="loading-message">Loading scholarships...</div>
+            ) : error ? (
+              <div className="error-message">{error}</div>
             ) : filteredScholarships.length === 0 ? (
               <div className="no-scholarships-message">
                 {activeTab === 'eligible' ? 

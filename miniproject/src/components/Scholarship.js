@@ -7,6 +7,7 @@ import './Scholarship.css';
 const ScholarshipPage = () => {
   // State for scholarships from database
   const [scholarships, setScholarships] = useState([]);
+  const [appliedScholarships, setAppliedScholarships] = useState([]);
   const [activeTab, setActiveTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState(null);
@@ -83,7 +84,7 @@ const ScholarshipPage = () => {
     }
   };
 
-  // Fetch scholarships
+  // Fetch scholarships and applied scholarships
   useEffect(() => {
     const fetchScholarships = async () => {
       setLoading(true);
@@ -107,35 +108,69 @@ const ScholarshipPage = () => {
         
         console.log("Scholarships data received:", scholarshipsData);
         
-        // If student is logged in, try to fetch their applications
-        let appliedScholarshipIds = [];
+        // If student is logged in, fetch their applications
         if (studentId) {
           try {
+            // Fetch applied scholarships with full details
             const { data: applications, error: appError } = await supabase
               .from('scholarship_applications')
-              .select('scholarship_id')
+              .select('*')
               .eq('student_id', studentId);
             
-            if (!appError && applications) {
-              appliedScholarshipIds = applications.map(app => app.scholarship_id);
-              console.log("Applied scholarship IDs:", appliedScholarshipIds);
-            } else if (appError) {
+            if (appError) {
               console.warn("Error fetching applications:", appError);
+            } else {
+              console.log("Applied scholarships data:", applications);
+              
+              // Extract scholarship IDs from applications
+              const appliedScholarshipIds = applications.map(app => app.scholarship_id);
+              
+              // Mark scholarships that have been applied for
+              const processedScholarships = scholarshipsData.map(scholarship => ({
+                ...scholarship,
+                applied: appliedScholarshipIds.includes(scholarship.id)
+              }));
+              
+              setScholarships(processedScholarships || []);
+              
+              // Fetch full details for applied scholarships
+              if (appliedScholarshipIds.length > 0) {
+                const { data: appliedScholarshipsData, error: appliedError } = await supabase
+                  .from('scholarships')
+                  .select('*')
+                  .in('id', appliedScholarshipIds);
+                
+                if (appliedError) {
+                  console.error("Error fetching applied scholarships details:", appliedError);
+                } else {
+                  // Combine with application status data
+                  const fullAppliedScholarships = appliedScholarshipsData.map(scholarship => {
+                    const applicationData = applications.find(app => app.scholarship_id === scholarship.id);
+                    return {
+                      ...scholarship,
+                      applied: true,
+                      applicationStatus: applicationData?.status || 'pending',
+                      appliedDate: applicationData?.applied_date
+                    };
+                  });
+                  
+                  setAppliedScholarships(fullAppliedScholarships);
+                }
+              } else {
+                setAppliedScholarships([]);
+              }
             }
           } catch (appErr) {
-            console.error("Error with applications, continuing without applied status:", appErr);
-            // Continue without the applied status - non-critical error
+            console.error("Error with applications:", appErr);
+            // Use the original scholarships data without applied status
+            setScholarships(scholarshipsData || []);
+            setAppliedScholarships([]);
           }
+        } else {
+          // No student ID, just set the scholarships
+          setScholarships(scholarshipsData || []);
         }
         
-        // Mark scholarships that have been applied for
-        const processedScholarships = scholarshipsData.map(scholarship => ({
-          ...scholarship,
-          applied: appliedScholarshipIds.includes(scholarship.id)
-        }));
-        
-        console.log("Processed scholarships:", processedScholarships);
-        setScholarships(processedScholarships || []);
         setError(null);
       } catch (err) {
         console.error("Error fetching scholarships (full error):", err);
@@ -166,6 +201,18 @@ const ScholarshipPage = () => {
           { event: '*', schema: 'public', table: 'scholarships' }, 
           (payload) => {
             console.log("Database changed, payload:", payload);
+            setRefreshTrigger(prev => prev + 1);
+          }
+        )
+        .subscribe();
+      
+      // Add subscription to applications table as well
+      scholarshipsSubscription = supabase
+        .channel('applications-channel')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'scholarship_applications' }, 
+          (payload) => {
+            console.log("Applications changed, payload:", payload);
             setRefreshTrigger(prev => prev + 1);
           }
         )
@@ -209,10 +256,10 @@ const ScholarshipPage = () => {
 
   // Filter scholarships based on active tab
   const filteredScholarships = activeTab === 'eligible'
-    ? (scholarships || []).filter(scholarship => !scholarship.applied)
+    ? scholarships.filter(scholarship => !scholarship.applied)
     : activeTab === 'applied'
-      ? (scholarships || []).filter(scholarship => scholarship.applied)
-      : scholarships || [];
+      ? appliedScholarships  // Use the dedicated applied scholarships state
+      : scholarships;
 
   // Apply to scholarship
   const handleApply = async (id) => {
@@ -258,10 +305,22 @@ const ScholarshipPage = () => {
         return;
       }
       
-      // Update local state and switch tabs
+      // Update local state
+      // Mark the scholarship as applied in the main scholarships list
       setScholarships(prev => prev.map(sch => 
         String(sch.id) === String(id) ? { ...sch, applied: true } : sch
       ));
+      
+      // Add to applied scholarships list
+      const appliedScholarship = {
+        ...scholarship,
+        applied: true,
+        applicationStatus: 'pending',
+        appliedDate: new Date().toISOString()
+      };
+      setAppliedScholarships(prev => [...prev, appliedScholarship]);
+      
+      // Switch to applied tab
       setActiveTab('applied');
       
       alert("Application submitted successfully!");
@@ -329,7 +388,6 @@ const ScholarshipPage = () => {
                 >
                   Applied
                 </button>
-                
               </div>
             </div>
           </div>
@@ -390,6 +448,18 @@ const ScholarshipPage = () => {
                       <p><strong>Eligibility:</strong> {scholarship.eligibility || "Open to all students"}</p>
                       <p><strong>Description:</strong> {scholarship.description || "No description provided"}</p>
                       <p className="deadline"><strong>Deadline:</strong> {scholarship.deadline || "Not specified"}</p>
+                      {scholarship.applied && scholarship.applicationStatus && (
+                        <p className="application-status">
+                          <strong>Status:</strong> 
+                          <span style={{ 
+                            color: scholarship.applicationStatus === 'pending' ? '#FF9800' : 
+                                  scholarship.applicationStatus === 'approved' ? '#4CAF50' : 
+                                  scholarship.applicationStatus === 'rejected' ? '#F44336' : '#2196F3'
+                          }}>
+                            {" " + scholarship.applicationStatus.charAt(0).toUpperCase() + scholarship.applicationStatus.slice(1)}
+                          </span>
+                        </p>
+                      )}
                     </div>
                     <div className="scholarship-actions">
                       {scholarship.applied ? (

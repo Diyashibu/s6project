@@ -323,8 +323,8 @@ const ScholarshipPage = () => {
       };
       setAppliedScholarships(prev => [...prev, appliedScholarship]);
       
-      // Switch to applied tab
-      setActiveTab('applied');
+      // REMOVED: Don't change the active tab
+      // setActiveTab('applied');
       
       alert("Application submitted successfully!");
     } catch (error) {

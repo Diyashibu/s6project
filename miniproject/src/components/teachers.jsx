@@ -22,9 +22,11 @@ import {
   useTheme,
   CircularProgress,
   TextField,
-  Alert
+  Alert,
+  Tooltip
 } from "@mui/material";
-import { LibraryBooks, EmojiEvents, School } from "@mui/icons-material";
+import { LibraryBooks, EmojiEvents, School, FileDownload } from "@mui/icons-material";
+import * as XLSX from 'xlsx';
 
 export default function TeacherDashboard() {
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -35,6 +37,7 @@ export default function TeacherDashboard() {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isScholarshipModalOpen, setIsScholarshipModalOpen] = useState(false);
   const [isScholarshipModalClose, setIsScholarshipModalClose] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -225,6 +228,59 @@ export default function TeacherDashboard() {
     setShowClassPrompt(true);
   };
 
+  // Generate Excel report function
+  const generateExcelReport = async () => {
+    if (!currentClass || students.length === 0) return;
+    
+    setGeneratingReport(true);
+    
+    try {
+      // Determine which data to include based on active tab
+      let reportData;
+      let fileName;
+      
+      if (activeTab === 0) {
+        // For Activity Points tab
+        reportData = students.map((student, index) => ({
+          'SL No': index + 1,
+          'KTU ID': student.formattedId || `KTU${String(student.id).padStart(4, '0')}`,
+          'Name': student.name,
+          'Total Activity Points': student.total_activity_point || 0,
+          'Pending Certificates': student.unverifiedCertificates || 0,
+          'Email': student.email || '',
+          'Phone': student.phone || ''
+        }));
+        fileName = `${currentClass.class_name}_ActivityPoints_${new Date().toISOString().split('T')[0]}.xlsx`;
+      } else {
+        // For Scholarships tab
+        reportData = students.map((student, index) => ({
+          'SL No': index + 1,
+          'KTU ID': student.formattedId || `KTU${String(student.id).padStart(4, '0')}`,
+          'Name': student.name,
+          'Pending Applications': student.newApplications || 0,
+          'Email': student.email || '',
+          'Phone': student.phone || ''
+        }));
+        fileName = `${currentClass.class_name}_Scholarships_${new Date().toISOString().split('T')[0]}.xlsx`;
+      }
+      
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(reportData);
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, currentClass.class_name);
+      
+      // Save the workbook
+      XLSX.writeFile(wb, fileName);
+    } catch (err) {
+      console.error("Error generating Excel report:", err);
+      alert("Failed to generate report. Please try again.");
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -353,9 +409,27 @@ export default function TeacherDashboard() {
               <Typography variant="h6" fontWeight="bold">
                 {currentClass.class_name} Students
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {students.length} student{students.length !== 1 ? 's' : ''} found
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {students.length} student{students.length !== 1 ? 's' : ''} found
+                </Typography>
+                <Tooltip title="Generate Excel Report">
+                  <Button 
+                    variant="contained" 
+                    color="primary"
+                    startIcon={<FileDownload />}
+                    onClick={generateExcelReport}
+                    disabled={generatingReport || students.length === 0}
+                    size="small"
+                    sx={{ 
+                      bgcolor: 'black',
+                      '&:hover': { bgcolor: '#333' }
+                    }}
+                  >
+                    {generatingReport ? <CircularProgress size={20} color="inherit" /> : "Generate Report"}
+                  </Button>
+                </Tooltip>
+              </Box>
             </Box>
             <Box sx={{ overflowX: 'auto' }}>
               {loading ? (

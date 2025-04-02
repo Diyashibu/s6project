@@ -14,6 +14,9 @@ const ScholarshipPage = () => {
   const [error, setError] = useState(null);
   const [studentData, setStudentData] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  // Add new state for modal details
+  const [selectedScholarship, setSelectedScholarship] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Fetch user information from local storage
   useEffect(() => {
@@ -330,6 +333,18 @@ const ScholarshipPage = () => {
     }
   };
 
+  // Handle View Details button click
+  const handleViewDetails = (scholarship) => {
+    setSelectedScholarship(scholarship);
+    setShowDetailsModal(true);
+  };
+
+  // Close modal
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedScholarship(null);
+  };
+
   return (
     <div className="portal-container">
       {/* Top Navigation Bar */}
@@ -394,29 +409,15 @@ const ScholarshipPage = () => {
           
           {/* Authentication Status Message */}
           {!studentId && !loading && (
-            <div className="auth-message" style={{
-              backgroundColor: "#FFF3CD", 
-              color: "#856404", 
-              padding: "12px", 
-              margin: "12px", 
-              borderRadius: "4px",
-              textAlign: "center"
-            }}>
+            <div className="auth-message">
               You are not logged in. Please <Link to="/" style={{fontWeight: "bold"}}>log in</Link> to apply for scholarships.
             </div>
           )}
           
           {/* Error Message (if any) */}
           {error && (
-            <div className="error-message" style={{
-              backgroundColor: "#F8D7DA",
-              color: "#721C24",
-              padding: "12px",
-              margin: "12px",
-              borderRadius: "4px",
-              textAlign: "center"
-            }}>
-              {error} <button onClick={handleRefresh} style={{marginLeft: "10px", fontWeight: "bold", padding: "5px 10px", backgroundColor: "#DC3545", color: "white", border: "none", borderRadius: "4px", cursor: "pointer"}}>Try Again</button>
+            <div className="error-message">
+              {error} <button onClick={handleRefresh} className="refresh-button">Try Again</button>
             </div>
           )}
           
@@ -451,11 +452,7 @@ const ScholarshipPage = () => {
                       {scholarship.applied && scholarship.applicationStatus && (
                         <p className="application-status">
                           <strong>Status:</strong> 
-                          <span style={{ 
-                            color: scholarship.applicationStatus === 'pending' ? '#FF9800' : 
-                                  scholarship.applicationStatus === 'approved' ? '#4CAF50' : 
-                                  scholarship.applicationStatus === 'rejected' ? '#F44336' : '#2196F3'
-                          }}>
+                          <span className={`status-${scholarship.applicationStatus}`}>
                             {" " + scholarship.applicationStatus.charAt(0).toUpperCase() + scholarship.applicationStatus.slice(1)}
                           </span>
                         </p>
@@ -463,36 +460,19 @@ const ScholarshipPage = () => {
                     </div>
                     <div className="scholarship-actions">
                       {scholarship.applied ? (
-                        <p style={{ color: "#FF5722", fontWeight: "bold" }}>Applied</p>
+                        <p className="applied-tag">Applied</p>
                       ) : (
                         <>
                           <button 
                             className="apply-button" 
                             onClick={() => handleApply(scholarship.id)}
                             disabled={!studentId}
-                            style={{
-                              backgroundColor: "#4CAF50",
-                              color: "white",
-                              border: "none",
-                              padding: "8px 16px",
-                              borderRadius: "4px",
-                              cursor: studentId ? "pointer" : "not-allowed",
-                              opacity: studentId ? 1 : 0.6
-                            }}
                           >
                             Apply Now
                           </button>
                           <button 
                             className="details-button"
-                            style={{
-                              backgroundColor: "#2196F3",
-                              color: "white",
-                              border: "none",
-                              padding: "8px 16px",
-                              borderRadius: "4px",
-                              marginLeft: "8px",
-                              cursor: "pointer"
-                            }}
+                            onClick={() => handleViewDetails(scholarship)}
                           >
                             View Details
                           </button>
@@ -504,6 +484,93 @@ const ScholarshipPage = () => {
               </div>
             )}
           </main>
+          
+          {/* Details Modal */}
+          {showDetailsModal && selectedScholarship && (
+            <div className="modal-overlay">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h2>{selectedScholarship.name}</h2>
+                  <button 
+                    onClick={closeDetailsModal}
+                    className="close-button"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="scholarship-detail-content">
+                  <div className="detail-item">
+                    <h3 className="detail-heading amount">Amount</h3>
+                    <p className="detail-value amount-value">{selectedScholarship.amount}</p>
+                  </div>
+                  
+                  <div className="detail-item">
+                    <h3 className="detail-heading provider">Provider</h3>
+                    <p className="detail-value">{selectedScholarship.provider}</p>
+                  </div>
+                  
+                  <div className="detail-item">
+                    <h3 className="detail-heading deadline">Deadline</h3>
+                    <p className="detail-value">{selectedScholarship.deadline || "Not specified"}</p>
+                  </div>
+                  
+                  <div className="detail-item">
+                    <h3 className="detail-heading eligibility">Eligibility</h3>
+                    <p className="detail-value">{selectedScholarship.eligibility || "Open to all students"}</p>
+                  </div>
+                  
+                  <div className="detail-item">
+                    <h3 className="detail-heading description">Description</h3>
+                    <p className="detail-value">{selectedScholarship.description || "No description provided"}</p>
+                  </div>
+                  
+                  {selectedScholarship.requirements && (
+                    <div className="detail-item">
+                      <h3 className="detail-heading requirements">Requirements</h3>
+                      <p className="detail-value">{selectedScholarship.requirements}</p>
+                    </div>
+                  )}
+                  
+                  {selectedScholarship.website && (
+                    <div className="detail-item">
+                      <h3 className="detail-heading website">Website</h3>
+                      <a href={selectedScholarship.website} target="_blank" rel="noopener noreferrer" className="website-link">
+                        Visit Provider Website
+                      </a>
+                    </div>
+                  )}
+                  
+                  {selectedScholarship.contact_info && (
+                    <div className="detail-item">
+                      <h3 className="detail-heading contact">Contact Information</h3>
+                      <p className="detail-value">{selectedScholarship.contact_info}</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="modal-footer">
+                  {!selectedScholarship.applied && studentId && (
+                    <button 
+                      onClick={() => {
+                        handleApply(selectedScholarship.id);
+                        closeDetailsModal();
+                      }}
+                      className="modal-apply-button"
+                    >
+                      Apply Now
+                    </button>
+                  )}
+                  <button 
+                    onClick={closeDetailsModal}
+                    className="modal-close-button"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

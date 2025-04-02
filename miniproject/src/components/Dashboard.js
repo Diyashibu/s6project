@@ -209,6 +209,11 @@ const StudentPortal = () => {
     window.location.href = '/';
   };
 
+  // Calculate activity points and remaining percentage
+  const activityPoints = studentData?.total_activity_point || 0;
+  const completedPercentage = activityPoints > 100 ? 100 : activityPoints; // Cap at 100% for display
+  const remainingPercentage = activityPoints >= 100 ? 0 : 100 - activityPoints; // Show 0% if completed
+
   if (loading) {
     return <div className="loading-indicator">Loading...</div>;
   }
@@ -392,21 +397,21 @@ const StudentPortal = () => {
                             a 15.9155 15.9155 0 0 1 0 -31.831"
                           fill="none"
                           className="circle"
-                          strokeDasharray={`${(studentData?.total_activity_point || 0)}, 100`}
+                          strokeDasharray={`${completedPercentage}, 100`}
                         />
                       </svg>
                       <div className="percentage">
-                        {studentData?.total_activity_point || 0}%
+                        {activityPoints}%
                       </div>
                     </div>
                     <div className="progress-legend">
                       <div className="legend-item">
                         <span className="legend-color completed"></span>
-                        <span className="legend-text">Completed ({studentData?.total_activity_point || 0}%)</span>
+                        <span className="legend-text">Completed ({completedPercentage}%)</span>
                       </div>
                       <div className="legend-item">
                         <span className="legend-color remaining"></span>
-                        <span className="legend-text">Remaining ({100 - (studentData?.total_activity_point || 0)}%)</span>
+                        <span className="legend-text">Remaining ({remainingPercentage}%)</span>
                       </div>
                     </div>
                   </div>

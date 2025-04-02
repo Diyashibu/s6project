@@ -137,13 +137,16 @@ const ActivityPoints = () => {
 
     const fileUrl = urlData.publicUrl;
 
+    // Calculate points based on file name
+    const points = calculatePoints(file.name);
+
     // Insert into 'certificates' table
     const { error: insertError } = await supabase
       .from('certificates')
       .insert([{ 
         student_id: userId, 
         certificate: fileUrl,
-        activity_point: calculatePoints(file.name)
+        activity_point: points
       }]);
     
     if (insertError) {
@@ -321,6 +324,7 @@ const ActivityPoints = () => {
                           <thead>
                             <tr>
                               <th>File Name</th>
+                              <th>Points</th>
                               <th>Upload Date</th>
                               <th>Status</th>
                               <th>Actions</th>
@@ -334,6 +338,11 @@ const ActivityPoints = () => {
                                     <FileText size={16} />
                                     <span>{file.name}</span>
                                   </div>
+                                </td>
+                                <td>
+                                  <span className="activity-points">
+                                    {file.points}
+                                  </span>
                                 </td>
                                 <td>{file.date}</td>
                                 <td>

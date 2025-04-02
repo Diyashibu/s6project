@@ -727,3 +727,119 @@ body {
 .activity-table th:nth-child(4) {
   width: 15%;
 }
+
+/* Add these styles to your Activity.css file */
+
+/* Action buttons in the table */
+.delete-file-btn, .view-file-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  margin-right: 0.25rem;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.delete-file-btn {
+  color: #F44336;
+}
+
+.view-file-btn {
+  color: #2196F3;
+}
+
+.delete-file-btn:hover {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.view-file-btn:hover {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+/* Delete Confirmation Modal */
+.confirmation-modal {
+  background: #fff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  color: #333;
+}
+
+.file-to-delete-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f9f9f9;
+  margin: 1rem 0;
+  border-radius: 4px;
+}
+
+.warning-text {
+  color: #F44336;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+.delete-confirm-btn {
+  background: #F44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.delete-confirm-btn:hover {
+  background: #d32f2f;
+}
+
+/* Actions column for uploaded files table */
+.uploaded-files-table th:last-child,
+.uploaded-files-table td:last-child {
+  width: 100px;
+  text-align: center;
+}
+
+/* Flex container for action buttons */
+.file-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Make sure the action column is visible */
+.uploaded-files-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.uploaded-files-table th:nth-child(1) {
+  width: 40%;
+}
+
+.uploaded-files-table th:nth-child(2) {
+  width: 20%;
+}
+
+.uploaded-files-table th:nth-child(3) {
+  width: 20%;
+}
+
+.uploaded-files-table th:nth-child(4) {
+  width: 20%;
+}
+
+/* No data message styling */
+.no-data-message {
+  text-align: center;
+  padding: 2rem;
+  color: #aaa;
+  font-style: italic;
+}

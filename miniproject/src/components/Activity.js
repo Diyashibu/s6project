@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import React, { useRef, useState, useEffect } from 'react';
-import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Upload, FileText, X, CheckCircle } from 'lucide-react';
+import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Upload, FileText, X, CheckCircle, Trash2 } from 'lucide-react';
 import './Activity.css';
 import { supabase } from '../supabase'; // Make sure to import your Supabase client
 
@@ -19,6 +19,9 @@ const ActivityPoints = () => {
   const [certificateData, setCertificateData] = useState([]);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState(null);
+  // New state for delete confirmation
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState(null);
 
   // Get verified certificates only
   const verifiedCertificates = certificateData.filter(item => item.status === "Verified");
@@ -57,13 +60,14 @@ const ActivityPoints = () => {
       
       if (data) {
         // Enhance certificate data with points and activities
-        const enhancedData = data.map((cert, index) => ({
-          id: index + 1,
-          name: cert.certificate.split('/').pop() || `Certificate ${index + 1}`,
+        const enhancedData = data.map((cert) => ({
+          id: cert.id || cert.certificate.split('/').pop(),
+          name: cert.certificate.split('/').pop() || `Certificate`,
           date: new Date(cert.created_at || Date.now()).toISOString().split('T')[0],
           points: cert.activity_point || calculatePoints(cert.certificate),
           certificate: cert.certificate,
-          status: cert.verified ? "Verified" : "Pending"
+          status: cert.verified ? "Verified" : "Pending",
+          storageKey: extractStorageKeyFromUrl(cert.certificate)
         }));
         
         setCertificateData(enhancedData);
@@ -71,6 +75,18 @@ const ActivityPoints = () => {
       }
     } catch (error) {
       console.error("Failed to fetch certificates:", error);
+    }
+  };
+
+  // Extract storage key from the URL
+  const extractStorageKeyFromUrl = (url) => {
+    try {
+      // Example URL: https://your-bucket.supabase.co/storage/v1/object/public/certuploads/1234567-filename.png
+      const parts = url.split('/');
+      return parts[parts.length - 1]; // Get the filename with timestamp
+    } catch (error) {
+      console.error("Failed to extract storage key:", error);
+      return null;
     }
   };
 
@@ -146,6 +162,48 @@ const ActivityPoints = () => {
     setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
   };
 
+  // Initiate delete process
+  const initiateDelete = (file) => {
+    setFileToDelete(file);
+    setShowDeleteConfirmation(true);
+  };
+
+  // Handle file deletion
+  const handleDeleteFile = async () => {
+    if (!fileToDelete) return;
+
+    try {
+      // Delete from Supabase storage if storageKey is available
+      if (fileToDelete.storageKey) {
+        const { error: storageError } = await supabase.storage
+          .from('certuploads')
+          .remove([fileToDelete.storageKey]);
+        
+        if (storageError) {
+          console.error("Failed to delete file from storage:", storageError);
+        }
+      }
+
+      // Delete the record from the certificates table
+      const { error: dbError } = await supabase
+        .from('certificates')
+        .delete()
+        .eq('id', fileToDelete.id);
+      
+      if (dbError) {
+        console.error("Failed to delete certificate record:", dbError);
+      } else {
+        // Update local state to remove the deleted file
+        setCertificateData(prevData => prevData.filter(cert => cert.id !== fileToDelete.id));
+        setUploadedFiles(prevFiles => prevFiles.filter(file => file.id !== fileToDelete.id));
+        setShowDeleteConfirmation(false);
+        setFileToDelete(null);
+      }
+    } catch (error) {
+      console.error("Error during file deletion:", error);
+    }
+  };
+
   const handleViewCertificate = (cert) => {
     setSelectedCertificate(cert);
     setShowCertificateModal(true);
@@ -158,14 +216,6 @@ const ActivityPoints = () => {
         <div className="nav-left">
           <span className="nav-title">Student Portal</span>
         </div>
-      {/*}  <div className="nav-right">
-          <div className="search-container">
-            <input type="text" placeholder="Search" className="search-input" />
-            <Search className="search-icon" />
-          </div>
-          <Bell className="nav-icon" color="#FFD700" />
-          <Settings className="nav-icon" color="#4CAF50" />
-        </div> */}
       </header>
 
       <div className="main-container">
@@ -273,6 +323,7 @@ const ActivityPoints = () => {
                               <th>File Name</th>
                               <th>Upload Date</th>
                               <th>Status</th>
+                              <th>Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -289,6 +340,24 @@ const ActivityPoints = () => {
                                   <span className={`status-badge status-${file.status.toLowerCase()}`}>
                                     {file.status}
                                   </span>
+                                </td>
+                                <td>
+                                  {file.status === "Pending" && (
+                                    <button 
+                                      className="delete-file-btn" 
+                                      onClick={() => initiateDelete(file)}
+                                      title="Delete file"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  )}
+                                  <button 
+                                    className="view-file-btn" 
+                                    onClick={() => handleViewCertificate(file)}
+                                    title="View certificate"
+                                  >
+                                    <FileText size={16} />
+                                  </button>
                                 </td>
                               </tr>
                             ))}
@@ -467,6 +536,51 @@ const ActivityPoints = () => {
                   }}
                 />
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmation && fileToDelete && (
+        <div className="modal-overlay">
+          <div className="confirmation-modal">
+            <div className="modal-header">
+              <h3>Confirm Deletion</h3>
+              <button 
+                className="close-btn" 
+                onClick={() => {
+                  setShowDeleteConfirmation(false);
+                  setFileToDelete(null);
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this certificate?</p>
+              <div className="file-to-delete-info">
+                <FileText size={18} />
+                <span>{fileToDelete.name}</span>
+              </div>
+              <p className="warning-text">This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="cancel-btn" 
+                onClick={() => {
+                  setShowDeleteConfirmation(false);
+                  setFileToDelete(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="delete-confirm-btn" 
+                onClick={handleDeleteFile}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

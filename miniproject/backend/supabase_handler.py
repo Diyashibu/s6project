@@ -21,10 +21,16 @@ def get_certificates():
         print(f"Failed to retrieve certificates. Error: {response.text}")
         return []
 
+import os
+
 def download_certificate(image_url, save_path):
     """Download the certificate image from the given URL."""
     try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
         urllib.request.urlretrieve(image_url, save_path)
+        print(f"Downloaded certificate: {save_path}")
         return save_path
     except Exception as e:
         print(f"Error downloading certificate: {e}")
@@ -36,8 +42,11 @@ def update_certificate_points(record_id, points):
         "activity_point": points
     }
 
-    url = f"{SUPABASE_URL}/rest/v1/certificates?id=eq.{record_id}"
-    response = requests.patch(url, json=data, headers=HEADERS)
+    url = f"{SUPABASE_URL}/rest/v1/certificates"
+    data["id"] = record_id  # Ensure ID is included in the body
+
+    response = requests.patch(url, json=[data], headers=HEADERS)  # Send as a list
+
 
     if response.status_code == 204:
         print(f"Updated activity points for record {record_id} successfully.")

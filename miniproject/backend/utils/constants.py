@@ -3,7 +3,6 @@ POINTS_MAPPING = {
     "ncc": 60,
     "nss": 60,
     "ncc_c-certificate": 80,  # Additional points for NCC/NSS C-certificate
-    "nptel": 20,
     "nptel + 8 week": 30,
     "nptel + 12 week": 50,
     # Sports & Games
@@ -22,10 +21,11 @@ POINTS_MAPPING = {
     "cultural + 3rd prize": 12,
 
     # Professional Self Initiatives
+    "hult prize" :10,
     "tech fest": 10,
     "tech quiz": 10,
-    "Excel":15,
     "mooc": 50,
+    "ibeto":50,
     "competitions + ieee": 40,
     "competitions + iet": 40,
     "conference + iit": 40,

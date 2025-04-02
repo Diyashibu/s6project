@@ -46,12 +46,14 @@ const AuthPage = () => {
     dob: "", 
     class: "", 
     total_activity_point: "",
-    unique_id: "" // This will be used for teacher login only
+    gender: "", // New field for gender
+    income: "" // New field for annual income
   });
   const [resetData, setResetData] = useState({ id: "", dob: "", newPassword: "", confirmPassword: "" });
 
   const departments = ["Computer Science", "Electronics", "Electrical", "Biomedical", "Applied Science", "Mechanical"];
   const classes = ["CSA", "CSB", "CSC", "CSBS", "ECA", "ECB", "EEE", "EB", "MECH"];
+  const genders = ["F", "M", "Other"]; // Options for gender dropdown
 
   const handleUserTypeChange = (event) => setUserType(event.target.value);
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -85,10 +87,10 @@ const AuthPage = () => {
   
   const handleLogin = async () => {
     setLoading(true);
-    const { id, password, unique_id } = formData;
+    const { id, password } = formData;
 
-    // Admin shortcut - just type "123" as unique_id to access admin page
-    if (userType === "teacher" && unique_id === "123") {
+    // Admin shortcut - just type "MDLAD001" as id to access admin page
+    if (userType === "teacher" && id === "MDLAD001" && password === "123") {
       // Store admin information in localStorage
       localStorage.setItem('userId', 'MDLAD001');
       localStorage.setItem('userType', 'admin');
@@ -99,10 +101,10 @@ const AuthPage = () => {
       return;
     }
 
-    // Teacher login with class identifier verification
+    // Teacher login without requiring unique_id
     if (userType === "teacher") {
-      if (!id || !password || !unique_id) {
-        alert("Please enter KTU ID, password, and class unique ID.");
+      if (!id || !password) {
+        alert("Please enter KTU ID and password.");
         setLoading(false);
         return;
       }
@@ -127,23 +129,19 @@ const AuthPage = () => {
         return;
       }
       
-      // Then verify the class unique_id
-      const { data: classData, error: classError } = await supabase
+      // Default class for the teacher - first available or predefined
+      const { data: classData } = await supabase
         .from("class_identifiers")
         .select("*")
-        .eq("unique_id", unique_id)
+        .limit(1)
         .maybeSingle();
-
-      if (classError || !classData) {
-        alert("Invalid class unique ID.");
-        setLoading(false);
-        return;
-      }
+        
+      const classId = classData?.id || "default_class";
 
       // Store user information and redirect
       localStorage.setItem('userId', teacher.id);
       localStorage.setItem('userType', 'teacher');
-      localStorage.setItem('classId', classData.id);
+      localStorage.setItem('classId', classId);
       
       alert("Login successful!");
       navigate("/teachers");
@@ -151,7 +149,7 @@ const AuthPage = () => {
       return;
     }
 
-    // Student login - now using the same verification approach as teachers
+    // Student login
     if (userType === "student") {
       if (!id || !password) {
         alert("Please enter both KTU ID and password.");
@@ -195,9 +193,17 @@ const AuthPage = () => {
 
   const handleSignUp = async () => {
     setLoading(true);
-    const { id, name, password, dob, dept, position, class: studentClass, total_activity_point } = formData;
+    const { id, name, password, dob, dept, position, class: studentClass, total_activity_point, gender, income } = formData;
+    
     if (!id || !name || !password || !dob) {
       alert("Please fill all required fields.");
+      setLoading(false);
+      return;
+    }
+
+    // For student signup, make sure gender is selected
+    if (userType === "student" && !gender) {
+      alert("Please select your gender.");
       setLoading(false);
       return;
     }
@@ -221,7 +227,16 @@ const AuthPage = () => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const entry = userType === "teacher"
       ? { id, name, dept, position, dob, password: hashedPassword }
-      : { id, name, class: studentClass, total_activity_point, dob, password: hashedPassword };
+      : { 
+          id, 
+          name, 
+          class: studentClass, 
+          total_activity_point, 
+          dob, 
+          password: hashedPassword, 
+          gender, // Add gender to the student entry
+          income: income ? parseFloat(income) : null // Add income to the student entry
+        };
 
     const { error: insertError } = await supabase.from(table).insert([entry]);
 
@@ -488,21 +503,6 @@ const AuthPage = () => {
               sx={{ mb: 2 }}
             />
 
-            {/* Class Unique ID field only for teacher login - not in signup */}
-            {!showSignUp && userType === "teacher" && (
-              <TextField 
-                fullWidth 
-                margin="normal" 
-                label="Class Unique ID" 
-                name="unique_id" 
-                value={formData.unique_id} 
-                onChange={handleInputChange}
-                variant="outlined"
-                sx={{ mb: 2 }}
-                helperText="Enter class unique ID or '123' for admin access"
-              />
-            )}
-
             {showSignUp && (
               <>
                 <TextField 
@@ -571,6 +571,34 @@ const AuthPage = () => {
                         ))}
                       </Select>
                     </FormControl>
+                    
+                    {/* New Gender dropdown for students */}
+                    <FormControl fullWidth margin="normal" variant="outlined" sx={{ mb: 2 }}>
+                      <InputLabel>Gender</InputLabel>
+                      <Select 
+                        name="gender" 
+                        value={formData.gender} 
+                        onChange={handleInputChange}
+                        label="Gender"
+                      >
+                        {genders.map((gender) => (
+                          <MenuItem key={gender} value={gender}>{gender}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {/* New Annual Income field for students */}
+                    <TextField 
+                      fullWidth 
+                      margin="normal" 
+                      label="Annual Income" 
+                      name="income" 
+                      type="number"
+                      value={formData.income} 
+                      onChange={handleInputChange}
+                      variant="outlined"
+                      sx={{ mb: 2 }}
+                    />
                     
                     <TextField 
                       fullWidth 

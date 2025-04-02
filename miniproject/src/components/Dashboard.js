@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import React, { useState, useEffect } from 'react';
-import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import './Dashboard.css';
 import { supabase } from "../supabase";
 
@@ -11,6 +11,12 @@ const StudentPortal = () => {
   
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Notification state
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
   
   useEffect(() => {
     // Get the logged-in user's ID from local storage
@@ -48,7 +54,84 @@ const StudentPortal = () => {
     };
     
     fetchStudentData();
+    fetchNotifications();
+    
+    // Set up real-time listener for notifications
+    const notificationSubscription = supabase
+      .channel('notifications')
+      .on('INSERT', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
+        setNotifications(current => [payload.new, ...current]);
+        setUnreadCount(count => count + 1);
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(notificationSubscription);
+    };
   }, []);
+  
+  // Handle click outside notification panel to close it
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (notificationRef.current && !notificationRef.current.contains(event.target) && !event.target.classList.contains('nav-icon')) {
+        setShowNotifications(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+  
+  const fetchNotifications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+        
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        return;
+      }
+      
+      if (data) {
+        setNotifications(data);
+        const unread = data.filter(notif => !notif.read).length;
+        setUnreadCount(unread);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  
+  const markAsRead = async (notificationId) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', notificationId);
+        
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        return;
+      }
+      
+      // Update local state
+      setNotifications(prev => prev.map(notif => 
+        notif.id === notificationId ? { ...notif, read: true } : notif
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+  };
   
   // Calendar navigation functions
   const prevMonth = () => {
@@ -108,12 +191,28 @@ const StudentPortal = () => {
     );
   }
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   // Handle logout
   const handleLogout = () => {
     localStorage.removeItem('userId');
     localStorage.removeItem('userType');
     window.location.href = '/';
   };
+
+  // Calculate activity points and remaining percentage
+  const activityPoints = studentData?.total_activity_point || 0;
+  const completedPercentage = activityPoints > 100 ? 100 : activityPoints; // Cap at 100% for display
+  const remainingPercentage = activityPoints >= 100 ? 0 : 100 - activityPoints; // Show 0% if completed
 
   if (loading) {
     return <div className="loading-indicator">Loading...</div>;
@@ -127,14 +226,47 @@ const StudentPortal = () => {
           <span className="nav-title">Student Portal</span>
         </div>
         <div className="nav-right">
-          <div className="search-container">
-            <input type="text" placeholder="Search" className="search-input" />
-            <Search className="search-icon" />
+          <div className="notification-container">
+            <Bell 
+              className="nav-icon" 
+              color="#FFD700" 
+              onClick={toggleNotifications} 
+            />
+            {unreadCount > 0 && (
+              <span className="notification-badge">{unreadCount}</span>
+            )}
+            
+            {/* Notification Panel */}
+            {showNotifications && (
+              <div className="notification-panel" ref={notificationRef}>
+                <div className="notification-header">
+                  <h3>Notifications</h3>
+                </div>
+                <div className="notification-list">
+                  {notifications.length > 0 ? (
+                    notifications.map((notif) => (
+                      <div 
+                        key={notif.id} 
+                        className={`notification-item ${!notif.read ? 'unread' : ''}`}
+                        onClick={() => markAsRead(notif.id)}
+                      >
+                        <div className="notification-content">
+                          <h4 className="notification-title">{notif.title}</h4>
+                          <p className="notification-message">{notif.message}</p>
+                          <span className="notification-time">{formatDate(notif.created_at)}</span>
+                        </div>
+                        {!notif.read && <div className="unread-indicator"></div>}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="no-notifications">No notifications</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <Bell className="nav-icon" color="#FFD700" />
-          <Settings className="nav-icon" color="#4CAF50" />
-        </div>
-      </header>
+        </div> 
+      </header> 
 
       <div className="main-container">
         {/* Sidebar */}
@@ -265,21 +397,21 @@ const StudentPortal = () => {
                             a 15.9155 15.9155 0 0 1 0 -31.831"
                           fill="none"
                           className="circle"
-                          strokeDasharray={`${(studentData?.total_activity_point || 0)}, 100`}
+                          strokeDasharray={`${completedPercentage}, 100`}
                         />
                       </svg>
                       <div className="percentage">
-                        {studentData?.total_activity_point || 0}%
+                        {activityPoints}%
                       </div>
                     </div>
                     <div className="progress-legend">
                       <div className="legend-item">
                         <span className="legend-color completed"></span>
-                        <span className="legend-text">Completed ({studentData?.total_activity_point || 0}%)</span>
+                        <span className="legend-text">Completed ({completedPercentage}%)</span>
                       </div>
                       <div className="legend-item">
                         <span className="legend-color remaining"></span>
-                        <span className="legend-text">Remaining ({100 - (studentData?.total_activity_point || 0)}%)</span>
+                        <span className="legend-text">Remaining ({remainingPercentage}%)</span>
                       </div>
                     </div>
                   </div>

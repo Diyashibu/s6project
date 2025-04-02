@@ -4,6 +4,8 @@ import re
 from utils.constants import POINTS_MAPPING
 
 # Tesseract OCR path setup
+
+# Manually set Tesseract path
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 def extract_text_from_image(image_path):

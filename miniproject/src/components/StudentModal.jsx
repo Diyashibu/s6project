@@ -11,6 +11,8 @@ import {
   Button,
   TextField,
   CircularProgress,
+  DialogActions,
+  DialogContentText,
 } from "@mui/material";
 import { supabase } from "../supabase";
 
@@ -19,6 +21,8 @@ const StudentModal = ({ open, onClose, student }) => {
   const [loading, setLoading] = useState(true);
   const [certificates, setCertificates] = useState([]);
   const [expandedImage, setExpandedImage] = useState(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [certificateToReject, setCertificateToReject] = useState(null);
 
   useEffect(() => {
     if (student && open) {
@@ -96,6 +100,7 @@ const StudentModal = ({ open, onClose, student }) => {
       console.error("Unexpected error in updateTotalActivityPoints:", err);
     }
   };
+
   // Update certificate points
   const handleUpdatePoints = async (certificateId, newPoints) => {
     try {
@@ -124,7 +129,7 @@ const StudentModal = ({ open, onClose, student }) => {
   // Toggle certificate verification
   const handleToggleVerification = async (certificateId) => {
     const cert = certificates.find((cert) => cert.id === certificateId);
-    if (!cert || cert.verified === !cert.verified) return; // Avoid redundant updates
+    if (!cert) return; // Avoid redundant updates
   
     try {
       const { error } = await supabase
@@ -139,6 +144,46 @@ const StudentModal = ({ open, onClose, student }) => {
         );
         await updateTotalActivityPoints(studentData.id);
       }
+    } catch (error) {
+      console.error("Unexpected error:", error);
+    }
+  };
+  
+  // Open rejection confirmation dialog
+  const openRejectDialog = (certificateId) => {
+    setCertificateToReject(certificateId);
+    setRejectDialogOpen(true);
+  };
+
+  // Close rejection confirmation dialog
+  const closeRejectDialog = () => {
+    setRejectDialogOpen(false);
+    setCertificateToReject(null);
+  };
+
+  // Delete/reject certificate
+  const handleRejectCertificate = async () => {
+    if (!certificateToReject) return;
+
+    try {
+      const { error } = await supabase
+        .from("certificates")
+        .delete()
+        .eq("id", certificateToReject)
+        .eq("student_id", studentData.id);
+
+      if (error) {
+        console.error("Error rejecting certificate:", error);
+        return;
+      }
+
+      // Update the certificates list
+      setCertificates((prev) => prev.filter((cert) => cert.id !== certificateToReject));
+      
+      // Update total points after removing certificate
+      await updateTotalActivityPoints(studentData.id);
+      
+      closeRejectDialog();
     } catch (error) {
       console.error("Unexpected error:", error);
     }
@@ -163,7 +208,7 @@ const StudentModal = ({ open, onClose, student }) => {
                 <TableCell>Sl No</TableCell>
                 <TableCell>Activity Points</TableCell>
                 <TableCell>Certificate Image</TableCell>
-                <TableCell>Action</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -195,7 +240,7 @@ const StudentModal = ({ open, onClose, student }) => {
                       <span>No Image</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell style={{ display: "flex", gap: "8px" }}>
                     <Button
                       variant="contained"
                       style={{
@@ -205,6 +250,16 @@ const StudentModal = ({ open, onClose, student }) => {
                       onClick={() => handleToggleVerification(cert.id)}
                     >
                       {cert.verified ? "VERIFIED" : "VERIFY"}
+                    </Button>
+                    <Button
+                      variant="contained"
+                      style={{
+                        backgroundColor: "red",
+                        color: "white",
+                      }}
+                      onClick={() => openRejectDialog(cert.id)}
+                    >
+                      REJECT
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -233,6 +288,29 @@ const StudentModal = ({ open, onClose, student }) => {
       <Button onClick={onClose} style={{ margin: "10px" }} variant="contained" color="secondary">
         CLOSE
       </Button>
+
+      {/* Confirmation Dialog for Certificate Rejection */}
+      <Dialog
+        open={rejectDialogOpen}
+        onClose={closeRejectDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">Confirm Rejection</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Are you sure you want to reject this certificate? This action will permanently delete the certificate  and cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeRejectDialog} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleRejectCertificate} color="error" autoFocus>
+            Reject & Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };

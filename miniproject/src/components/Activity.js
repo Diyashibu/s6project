@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import React, { useRef, useState, useEffect } from 'react';
-import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Upload, FileText, X, CheckCircle, Trash2 } from 'lucide-react';
+import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Upload, FileText, X, CheckCircle, Trash2, ChevronDown } from 'lucide-react';
 import './Activity.css';
 // import logo from '../assets/logo.png'
 import { supabase } from '../supabase'; // Make sure to import your Supabase client
@@ -23,6 +23,39 @@ const ActivityPoints = () => {
   // New state for delete confirmation
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
+  
+  // New state for certificate type and academic year
+  const [selectedType, setSelectedType] = useState('');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+
+  // Certificate type options
+  const certificateTypes = [
+    'FESTIVAL AND TECHNICAL EVENTS',
+    'TECH FEST',
+    'TECH QUIZ',
+    'COMPETITIONS CONDUCTED BY PROFESSIONAL SOCIETIES',
+    'ELECTED STUDENTS REPRESENTATIVES',
+    'ATTENDING FULL TIME CONFERENCES at IITs/ NITs',
+    'MOOC WITH FINAL ASSESSMENT CERTIFICATE',
+    'ATTENDING FULL TIME INTERCOLLEGIATE CONFERENCES at KTU / Affiliated colleges',
+    'HOBBY CLUBS',
+    'PERFORMING ARTS',
+    'Others'
+  ];
+
+  // Academic year options (generate dynamically for current and past 4 years)
+  const generateAcademicYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = 0; i < 5; i++) {
+      const startYear = currentYear - i;
+      const endYear = startYear + 1;
+      years.push(`${startYear}-${endYear}`);
+    }
+    return years;
+  };
+  
+  const academicYears = generateAcademicYears();
 
   // Get verified certificates only
   const verifiedCertificates = certificateData.filter(item => item.status === "Verified");
@@ -68,7 +101,9 @@ const ActivityPoints = () => {
           points: cert.activity_point || calculatePoints(cert.certificate),
           certificate: cert.certificate,
           status: cert.verified ? "Verified" : "Pending",
-          storageKey: extractStorageKeyFromUrl(cert.certificate)
+          storageKey: extractStorageKeyFromUrl(cert.certificate),
+          type: cert.Type || "Not Specified",
+          academicYear: cert.Academic_year || "Not Specified"
         }));
         
         setCertificateData(enhancedData);
@@ -109,11 +144,22 @@ const ActivityPoints = () => {
     setSelectedFiles((prevFiles) => [...prevFiles, ...files]);
   };
 
+  // Check if all required fields are selected
+  const isUploadEnabled = () => {
+    return selectedType !== '' && selectedAcademicYear !== '';
+  };
+
   const handleUpload = async (e) => {
     const file = e.target.files?.[0]; // Optional chaining to avoid undefined error
   
     if (!file) {
       console.log("No file selected");
+      return;
+    }
+    
+    // Check if required fields are selected
+    if (!isUploadEnabled()) {
+      alert("Please select both certificate type and academic year before uploading.");
       return;
     }
     
@@ -141,13 +187,15 @@ const ActivityPoints = () => {
     // Calculate points based on file name
     const points = calculatePoints(file.name);
 
-    // Insert into 'certificates' table
+    // Insert into 'certificates' table with new fields
     const { error: insertError } = await supabase
       .from('certificates')
       .insert([{ 
         student_id: userId, 
         certificate: fileUrl,
-        activity_point: points
+        activity_point: points,
+        Type: selectedType,
+        Academic_year: selectedAcademicYear
       }]);
     
     if (insertError) {
@@ -156,6 +204,10 @@ const ActivityPoints = () => {
       console.log("File uploaded successfully");
       setShowUploadSuccess(true);
       setTimeout(() => setShowUploadSuccess(false), 3000);
+      
+      // Reset the form values
+      setSelectedType('');
+      setSelectedAcademicYear('');
       
       // Refresh the certificates list
       fetchCertificates(userId);
@@ -290,7 +342,7 @@ const ActivityPoints = () => {
                 <div className="upload-card">
                   <h2 className="card-title">Upload Certificates</h2>
                   <p className="upload-description">
-                    Upload certificates for activity points verification. Supported formats: PDF, JPG, PNG (max 5MB each)
+                    Upload certificates for activity points verification. Supported formats: JPG, PNG (max 5MB each)
                   </p>
 
                   {/* Upload Success Message */}
@@ -301,6 +353,47 @@ const ActivityPoints = () => {
                     </div>
                   )}
 
+                  {/* New Selection Dropdowns */}
+                  <div className="certificate-attributes">
+                    <div className="certificate-attribute">
+                      <label htmlFor="certificate-type">Certificate Type:</label>
+                      <div className="select-wrapper">
+                        <select 
+                          id="certificate-type" 
+                          value={selectedType}
+                          onChange={(e) => setSelectedType(e.target.value)}
+                          className="certificate-select"
+                          required
+                        >
+                          <option value="">-- Select Certificate Type --</option>
+                          {certificateTypes.map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className="select-icon" />
+                      </div>
+                    </div>
+                    
+                    <div className="certificate-attribute">
+                      <label htmlFor="academic-year">Academic Year:</label>
+                      <div className="select-wrapper">
+                        <select 
+                          id="academic-year" 
+                          value={selectedAcademicYear}
+                          onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                          className="certificate-select"
+                          required
+                        >
+                          <option value="">-- Select Academic Year --</option>
+                          {academicYears.map(year => (
+                            <option key={year} value={year}>{year}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className="select-icon" />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* File Input for Upload */}
                   <input 
                     type="file"
@@ -308,16 +401,30 @@ const ActivityPoints = () => {
                     onChange={handleUpload}
                     style={{ display: 'none' }}
                     ref={fileInputRef}
+                    disabled={!isUploadEnabled()}
                   />
 
                   {/* Upload Button */}
                   <button 
-                    className="upload-btn" 
-                    onClick={() => fileInputRef.current.click()}
+                    className={`upload-btn ${!isUploadEnabled() ? 'disabled' : ''}`} 
+                    onClick={() => {
+                      if (isUploadEnabled()) {
+                        fileInputRef.current.click();
+                      } else {
+                        alert("Please select both certificate type and academic year before uploading.");
+                      }
+                    }}
                   >
                     <Upload size={18} />
                     Upload Certificates
                   </button>
+
+                  {/* Upload requirements notification */}
+                  {!isUploadEnabled() && (
+                    <div className="upload-requirements">
+                      <span>Please select both certificate type and academic year to enable upload.</span>
+                    </div>
+                  )}
 
                   {/* Uploaded Files Section - Only shown if there are files */}
                   {uploadedFiles.length > 0 && (
@@ -328,6 +435,8 @@ const ActivityPoints = () => {
                           <thead>
                             <tr>
                               <th>File Name</th>
+                              <th>Type</th>
+                              <th>Academic Year</th>
                               <th>Points</th>
                               <th>Upload Date</th>
                               <th>Status</th>
@@ -343,6 +452,8 @@ const ActivityPoints = () => {
                                     <span>{file.name}</span>
                                   </div>
                                 </td>
+                                <td>{file.type}</td>
+                                <td>{file.academicYear}</td>
                                 <td>
                                   <span className="activity-points">
                                     {file.points}
@@ -392,6 +503,8 @@ const ActivityPoints = () => {
                         <tr>
                           <th>Sl No.</th>
                           <th>Date</th>
+                          <th>Type</th>
+                          <th>Academic Year</th>
                           <th>Points</th>
                           <th>Certificate</th>
                         </tr>
@@ -402,6 +515,8 @@ const ActivityPoints = () => {
                             <tr key={item.id}>
                               <td>{index + 1}</td>
                               <td>{new Date(item.date).toLocaleDateString()}</td>
+                              <td>{item.type}</td>
+                              <td>{item.academicYear}</td>
                               <td>{item.points}</td>
                               <td>
                                 <button 
@@ -428,13 +543,13 @@ const ActivityPoints = () => {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="4" className="no-data-message">No verified certificates found</td>
+                            <td colSpan="6" className="no-data-message">No verified certificates found</td>
                           </tr>
                         )}
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan="2" className="total-label">Total Verified Points Earned:</td>
+                          <td colSpan="4" className="total-label">Total Verified Points Earned:</td>
                           <td colSpan="2" className="total-value">{earnedPoints}</td>
                         </tr>
                       </tfoot>

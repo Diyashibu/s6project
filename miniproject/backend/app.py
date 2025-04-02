@@ -106,7 +106,7 @@ def listen_for_new_certificates():
 
     while True:
         process_certificates()
-        time.sleep(10)  # Check every 10 seconds
+        time.sleep(2)  # Check every 10 seconds
 
 if __name__ == "__main__":
     listen_for_new_certificates()

@@ -268,3 +268,193 @@
     margin-left: 0;
   }
 }
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  overflow-y: auto;
+  color: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #FFD700;
+  font-size: 1.5rem;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1.8rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.close-button:hover {
+  color: white;
+}
+
+.scholarship-detail-content {
+  padding: 1.5rem;
+}
+
+.detail-item {
+  margin-bottom: 1.5rem;
+}
+
+.detail-heading {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem 0;
+  color: #bbb;
+}
+
+.detail-heading.amount {
+  color: #4CAF50;
+}
+
+.detail-heading.deadline {
+  color: #FF5722;
+}
+
+.detail-value {
+  margin: 0;
+  color: #ddd;
+  line-height: 1.5;
+}
+
+.amount-value {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #4CAF50;
+}
+
+.website-link {
+  color: #4fc3f7;
+  text-decoration: none;
+}
+
+.website-link:hover {
+  text-decoration: underline;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-apply-button,
+.modal-close-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.modal-apply-button {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.modal-apply-button:hover {
+  background-color: #3e8e41;
+}
+
+.modal-close-button {
+  background-color: transparent;
+  border: 1px solid #aaa;
+  color: #ddd;
+}
+
+.modal-close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Custom scrollbar for modal */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Application status styles */
+.application-status {
+  margin-top: 1rem;
+}
+
+.status-pending {
+  color: #FFD700;
+}
+
+.status-approved {
+  color: #4CAF50;
+}
+
+.status-rejected {
+  color: #F44336;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.3rem;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+  }
+  
+  .modal-apply-button,
+  .modal-close-button {
+    width: 100%;
+  }
+}

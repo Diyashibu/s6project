@@ -81,6 +81,10 @@ body {
     align-items: center;
     overflow-y: auto; /* Allow sidebar to scroll if needed */
   }
+  .avatar-img {
+    width: 10px; /* Adjust size */
+    height: 10px;  /* Maintain aspect ratio */
+  }
   
   .profile-brief {
     display: flex;

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import React, { useRef, useState, useEffect } from 'react';
 import { Bell, Search, Settings, User, MessageSquare, Activity, Award, LogOut, Home, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Upload, FileText, X, CheckCircle, Trash2 } from 'lucide-react';
 import './Activity.css';
+// import logo from '../assets/logo.png'
 import { supabase } from '../supabase'; // Make sure to import your Supabase client
 
 const ActivityPoints = () => {
@@ -228,7 +229,10 @@ const ActivityPoints = () => {
             <Home className="menu-icon" color="white" />
           </a>
           <div className="profile-brief">
-            <div className="avatar"></div>
+          <div className="avatar">
+            <img src="/assets/l2.png" alt="User Avatar" className="avatar-img" />
+          </div>
+            
           </div>
           <nav className="nav-menu">
             <Link to="/Dashboard" className="nav-item">

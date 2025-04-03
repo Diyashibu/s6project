@@ -13,6 +13,9 @@ import {
   CircularProgress,
   DialogActions,
   DialogContentText,
+  Select,
+  MenuItem,
+  FormControl,
 } from "@mui/material";
 import { supabase } from "../supabase";
 
@@ -23,6 +26,19 @@ const StudentModal = ({ open, onClose, student }) => {
   const [expandedImage, setExpandedImage] = useState(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [certificateToReject, setCertificateToReject] = useState(null);
+
+  // Certificate types
+  const certificateTypes = [
+    "ESTIVAL AND TECHNICAL EVENTS",
+    "TECH FEST TECH QUIZ",
+    "COMPETITIONS CONDUCTED BY PROFESSIONAL SOCIETIES",
+    "ELECTED STUDENTS REPRESENTATIVES",
+    "ATTENDING FULL TIME CONFERENCES at IITs/ NITs",
+    "MOOC WITH FINAL ASSESSMENT CERTIFICATE",
+    "ATTENDING FULL TIME INTERCOLLEGIATE CONFERENCES at KTU / Affiliated colleges",
+    "HOBBY CLUBS",
+    "PERFORMING ARTS"
+  ];
 
   useEffect(() => {
     if (student && open) {
@@ -50,6 +66,8 @@ const StudentModal = ({ open, onClose, student }) => {
         points: cert.activity_point || 0,
         img: typeof cert.certificate === "string" ? cert.certificate : "",
         verified: cert.verified || false,
+        type: cert.Type || "", // Added Type field
+        academicYear: cert.Academic_year || "", // Added Academic_year field
       }));
 
       setCertificates(formattedCertificates);
@@ -126,6 +144,50 @@ const StudentModal = ({ open, onClose, student }) => {
     }
   };
 
+  // Update certificate type
+  const handleUpdateType = async (certificateId, newType) => {
+    try {
+      const { error } = await supabase
+        .from("certificates")
+        .update({ Type: newType })
+        .eq("id", certificateId)
+        .eq("student_id", studentData.id);
+
+      if (error) {
+        console.error("Error updating type:", error);
+        return;
+      }
+
+      setCertificates((prev) =>
+        prev.map((cert) => (cert.id === certificateId ? { ...cert, type: newType } : cert))
+      );
+    } catch (error) {
+      console.error("Unexpected error:", error);
+    }
+  };
+
+  // Update academic year
+  const handleUpdateAcademicYear = async (certificateId, newYear) => {
+    try {
+      const { error } = await supabase
+        .from("certificates")
+        .update({ Academic_year: newYear })
+        .eq("id", certificateId)
+        .eq("student_id", studentData.id);
+
+      if (error) {
+        console.error("Error updating academic year:", error);
+        return;
+      }
+
+      setCertificates((prev) =>
+        prev.map((cert) => (cert.id === certificateId ? { ...cert, academicYear: newYear } : cert))
+      );
+    } catch (error) {
+      console.error("Unexpected error:", error);
+    }
+  };
+
   // Toggle certificate verification
   const handleToggleVerification = async (certificateId) => {
     const cert = certificates.find((cert) => cert.id === certificateId);
@@ -192,7 +254,7 @@ const StudentModal = ({ open, onClose, student }) => {
   if (!studentData) return null;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
       <DialogTitle>{studentData.name}'s Certificates</DialogTitle>
       <DialogContent>
         {loading ? (
@@ -207,6 +269,8 @@ const StudentModal = ({ open, onClose, student }) => {
               <TableRow>
                 <TableCell>Sl No</TableCell>
                 <TableCell>Activity Points</TableCell>
+                <TableCell style={{ minWidth: "250px" }}>Type</TableCell>
+                <TableCell>Academic Year</TableCell>
                 <TableCell>Certificate Image</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
@@ -224,6 +288,45 @@ const StudentModal = ({ open, onClose, student }) => {
                       variant="outlined"
                       size="small"
                       disabled={cert.verified}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {cert.verified ? (
+                      <div style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                        {cert.type}
+                      </div>
+                    ) : (
+                      <FormControl fullWidth size="small">
+                        <Select
+                          value={cert.type}
+                          onChange={(e) => handleUpdateType(cert.id, e.target.value)}
+                          displayEmpty
+                          style={{ minWidth: "220px" }}
+                        >
+                          <MenuItem value="">
+                            <em>Select Type</em>
+                          </MenuItem>
+                          {certificateTypes.map((type) => (
+                            <MenuItem key={type} value={type}>
+                              {type}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <input
+                      type="text"
+                      value={cert.academicYear}
+                      onChange={(e) => handleUpdateAcademicYear(cert.id, e.target.value)}
+                      disabled={cert.verified}
+                      style={{
+                        padding: "8px",
+                        width: "100%",
+                        border: cert.verified ? "none" : "1px solid #ccc",
+                        backgroundColor: cert.verified ? "transparent" : "#fff"
+                      }}
                     />
                   </TableCell>
                   <TableCell>
@@ -299,7 +402,7 @@ const StudentModal = ({ open, onClose, student }) => {
         <DialogTitle id="alert-dialog-title">Confirm Rejection</DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
-            Are you sure you want to reject this certificate? This action will permanently delete the certificate  and cannot be undone.
+            Are you sure you want to reject this certificate? This action will permanently delete the certificate and cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

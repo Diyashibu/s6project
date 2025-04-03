@@ -10,6 +10,9 @@ import SchoolIcon from "@mui/icons-material/School";
 import AddIcon from "@mui/icons-material/Add";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 
+import * as XLSX from "xlsx";
+
+
 const departmentOrder = [
   "Computer Science",
   "Electronics",
@@ -19,9 +22,12 @@ const departmentOrder = [
   "Mechanical",
 ];
 
+
+
 const classFolders = ["CSA", "CSB", "CSC", "CSBS", "ECA", "ECB", "EEE", "EB", "MECH"];
 
 const AdminDashboard = () => {
+  const [file, setFile] = useState(null);
   const [teacher, setTeachers] = useState([]);
   const [student, setStudents] = useState([]);
   const [scholarships, setScholarships] = useState([]);
@@ -42,6 +48,7 @@ const AdminDashboard = () => {
     eligibility: "", 
     description: "" 
   });
+  const [uploadStatus, setUploadStatus] = useState("");
   const [openPasswordModal, setOpenPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({ id: "", password: "", confirmPassword: "", type: "" });
   const [openRemoveModal, setOpenRemoveModal] = useState(false);
@@ -100,7 +107,6 @@ const AdminDashboard = () => {
       alert("Passwords do not match!");
       return;
     }
-    
     const table = passwordData.type === "teacher" ? "teacher" : "student";
     const { error } = await supabase.from(table).update({ password: passwordData.password }).eq("id", passwordData.id);
     if (!error) {
@@ -159,6 +165,72 @@ const AdminDashboard = () => {
     else fetchStudents();
     setOpenStudentModal(false);
   };
+  const handleFileUpload = async (event) => {
+    const uploadedFile = event.target.files[0];
+    if (!uploadedFile) {
+      console.error("No file selected!");
+      setUploadStatus("Please select a file.");
+      return;
+    }
+  
+    setFile(uploadedFile);
+    const reader = new FileReader();
+  
+    reader.onload = async (e) => {
+      try {
+        const binaryStr = e.target.result;
+        const workbook = XLSX.read(binaryStr, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+  
+        if (!sheet) {
+          console.error("No sheet found in the file!");
+          setUploadStatus("No sheet found in the file!");
+          return;
+        }
+  
+        let data = XLSX.utils.sheet_to_json(sheet);
+        console.log("Extracted data:", data);
+  
+        if (!data.length) {
+          console.error("No data extracted from the file!");
+          setUploadStatus("No data found in the file.");
+          return;
+        }
+  
+        // ✅ Format data to match Supabase `student` table
+        data = data.map((row) => ({
+          id: row.id ? String(row.id).trim() : null,
+          name: row.name ? String(row.name).trim() : "Unknown",
+          class: row.class ? String(row.class).trim() : "N/A",
+          total_activity_point: row.total_activity_point ? parseInt(row.total_activity_point, 10) : 0,
+          dob: row.dob ? new Date(row.dob).toISOString().split("T")[0] : null,
+          password: row.password ? String(row.password).trim() : "default123",
+          gender: row.gender ? String(row.gender).trim() : null,
+          income: row.income ? parseFloat(row.income).toFixed(2) : "0.00",
+        }));
+  
+        console.log("Formatted Data:", data);
+  
+        // ✅ Insert Data into Supabase
+        const { error } = await supabase.from("student").insert(data);
+        if (error) {
+          console.error("Error uploading to Supabase:", error.message);
+          setUploadStatus("Failed to upload data: " + error.message);
+        } else {
+          console.log("Data successfully uploaded!");
+          setUploadStatus("Data uploaded successfully!");
+          fetchStudents(); // Refresh student list
+        }
+      } catch (error) {
+        console.error("Error processing file:", error);
+        setUploadStatus("Error processing file.");
+      }
+    };
+  
+    reader.readAsBinaryString(uploadedFile);
+  };
+  
 
   const handleAddScholarship = async () => {
     const scholarshipToAdd = {
@@ -429,6 +501,27 @@ const AdminDashboard = () => {
             >
               Add Student
             </Button>
+            <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            component="label"  // Enables file selection on button click
+            sx={{ 
+            borderRadius: 2,
+            textTransform: 'none',
+            py: 1,
+            px: 2
+            }}
+            >
+            Add via file
+            <input 
+            type="file" 
+            accept=".xlsx, .xls" 
+            hidden 
+            onChange={handleFileUpload} 
+            />
+            </Button>
+
           </Box>
 
           <Typography>Select Class:</Typography>

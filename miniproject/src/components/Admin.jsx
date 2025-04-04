@@ -230,8 +230,120 @@ const AdminDashboard = () => {
   
     reader.readAsBinaryString(uploadedFile);
   };
+  //function for teacher fileupload
+  const handleteacherFileUpload = async (event) => {
+    const uploadedFile = event.target.files[0];
+    if (!uploadedFile) {
+      console.error("No file selected!");
+      setUploadStatus("Please select a file.");
+      return;
+    }
   
+    setFile(uploadedFile);
+    const reader = new FileReader();
+  
+    reader.onload = async (e) => {
+      try {
+        const binaryStr = e.target.result;
+        const workbook = XLSX.read(binaryStr, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+  
+        if (!sheet) {
+          console.error("No sheet found in the file!");
+          setUploadStatus("No sheet found in the file!");
+          return;
+        }
+  
+        let data = XLSX.utils.sheet_to_json(sheet);
+        console.log("Extracted data:", data);
+  
+        if (!data.length) {
+          console.error("No data extracted from the file!");
+          setUploadStatus("No data found in the file.");
+          return;
+        }
+  
+        // ✅ Allowed department values
+        const validDepartments = [
+          "Computer Science",
+          "Electronics",
+          "Electrical and Electronics",
+          "Biomedical",
+          "Applied Science",
+          "Mechanical",
+        ];
+  
+        // ✅ Convert Excel Serial Date to Proper Date Format
+        const excelDateToJSDate = (serial) => {
+          if (!serial || isNaN(serial)) return null;
+          const utc_days = Math.floor(serial - 25569);
+          const utc_value = utc_days * 86400 * 1000;
+          return new Date(utc_value).toISOString().split("T")[0]; // YYYY-MM-DD
+        };
+  
+        // ✅ Format Data to Match Supabase `teacher` Table
+        data = data
+          .map((row) => {
+            let formattedDept = row.dept ? row.dept.trim() : null;
+            if (!validDepartments.includes(formattedDept)) {
+              console.warn(`Invalid department '${formattedDept}' found. Assigning default.`);
+              formattedDept = validDepartments[0]; // Assign default department if invalid
+            }
+  
+            return {
+              dept: formattedDept, // Ensure dept is not null
+              position: row.position ? String(row.position).trim() : "N/A",
+              password: row.password ? String(row.password).trim() : "default123",
+              dob: row.dob ? excelDateToJSDate(row.dob) : null, // Convert Excel serial date
+              id: row.id ? String(row.id).trim() : null, // Ensure unique constraint
+              name: row.name ? String(row.name).trim() : null,
+            };
+          })
+          .filter((row) => row.id && row.name); // Remove rows with missing IDs or names
+  
+        console.log("Formatted Data:", data);
+  
+        // ✅ Check for Existing IDs to Prevent Duplicates
+        const { data: existingTeachers, error: fetchError } = await supabase.from("teacher").select("id");
+  
+        if (fetchError) {
+          console.error("Error fetching existing teachers:", fetchError.message);
+          setUploadStatus("Error fetching existing teacher data.");
+          return;
+        }
+  
+        const existingIds = new Set(existingTeachers.map((t) => t.id));
+        const newData = data.filter((row) => row.id && !existingIds.has(row.id));
+  
+        if (!newData.length) {
+          console.warn("No new data to insert, all IDs already exist.");
+          setUploadStatus("All records already exist in the database.");
+          return;
+        }
+  
+        // ✅ Insert Data into Supabase
+        const { data: insertedData, error } = await supabase.from("teacher").insert(newData);
+  
+        if (error) {
+          console.error("Error uploading to Supabase:", error.message);
+          setUploadStatus("Failed to upload data: " + error.message);
+        } else {
+          console.log("Data successfully uploaded!", insertedData);
+          setUploadStatus("Data uploaded successfully!");
+          fetchTeachers(); // Refresh teacher list
+        }
+      } catch (error) {
+        console.error("Error processing file:", error);
+        setUploadStatus("Error processing file.");
+      }
+    };
+  
+    reader.readAsBinaryString(uploadedFile);
+  };
 
+  
+    //FUNCTIONS FOR ADDING SCHOLARSHIPS
   const handleAddScholarship = async () => {
     const scholarshipToAdd = {
       ...newScholarship,
@@ -253,6 +365,94 @@ const AdminDashboard = () => {
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
+
+  const handleScholarshipFileUpload = async (event) => {
+    const uploadedFile = event.target.files[0];
+    if (!uploadedFile) {
+        console.error("No file selected!");
+        setUploadStatus("Please select a file.");
+        return;
+    }
+
+    setFile(uploadedFile);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+        try {
+            const binaryStr = e.target.result;
+            const workbook = XLSX.read(binaryStr, { type: "binary" });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+
+            if (!sheet) {
+                console.error("No sheet found in the file!");
+                setUploadStatus("No sheet found in the file!");
+                return;
+            }
+
+            let data = XLSX.utils.sheet_to_json(sheet);
+            console.log("Extracted Data:", data);
+
+            if (!data.length) {
+                console.error("No data extracted from the file!");
+                setUploadStatus("No data found in the file.");
+                return;
+            }
+
+            // ✅ Format Data to Match Supabase `scholarships` Table
+            data = data.map((row, index) => ({
+                id: row.id ? parseInt(row.id) : Date.now() + index, // Use provided ID or generate unique one
+                name: row.Name ? String(row.Name).trim() : null,
+                provider: row.Provider ? String(row.Provider).trim() : null,
+                amount: row.Amount ? String(row.Amount).trim() : null,
+                deadline: row.Deadline ? String(row.Deadline).trim() : null,
+                eligibility: row.Eligibility ? String(row.Eligibility).trim() : null,
+                description: "No description provided", // Default description (if needed)
+                applied: false, // Default applied status
+            }));
+
+            console.log("Formatted Data:", data);
+
+            // ✅ Check for Existing IDs to Prevent Duplicates
+            const { data: existingScholarships, error: fetchError } = await supabase
+                .from("scholarships")
+                .select("id");
+
+            if (fetchError) {
+                console.error("Error fetching existing scholarships:", fetchError.message);
+                setUploadStatus("Error fetching existing scholarship data.");
+                return;
+            }
+
+            const existingIds = existingScholarships.map((s) => s.id);
+            const newData = data.filter((row) => row.id && !existingIds.includes(row.id));
+
+            if (!newData.length) {
+                console.warn("No new data to insert, all IDs already exist.");
+                setUploadStatus("All records already exist in the database.");
+                return;
+            }
+
+            // ✅ Insert Data into Supabase
+            const { data: insertedData, error } = await supabase.from("scholarships").insert(newData);
+
+            if (error) {
+                console.error("Error uploading to Supabase:", error.message);
+                setUploadStatus("Failed to upload data: " + error.message);
+            } else {
+                console.log("Data successfully uploaded!", insertedData);
+                setUploadStatus("Data uploaded successfully!");
+                fetchScholarships(); // Refresh scholarship list
+            }
+        } catch (error) {
+            console.error("Error processing file:", error);
+            setUploadStatus("Error processing file.");
+        }
+    };
+
+    reader.readAsBinaryString(uploadedFile);
+};
+
 
   return (
     <Box sx={{ height: "100vh",  padding: "24px", maxWidth: "1800px", margin: "0 auto" }}>
@@ -399,7 +599,10 @@ const AdminDashboard = () => {
             <Typography variant="h5" fontWeight="bold">
               Teacher Management
             </Typography>
-            <Button 
+            
+  {/* Buttons Wrapper */}
+  <Stack direction="row" spacing={1.5}>
+  <Button 
               variant="contained" 
               color="primary" 
               startIcon={<AddIcon />}
@@ -413,6 +616,29 @@ const AdminDashboard = () => {
             >
               Add Teacher
             </Button>
+
+    <Button 
+      variant="contained" 
+      color="primary" 
+      startIcon={<AddIcon />}
+      component="label"  
+      sx={{ 
+        borderRadius: 2,
+        textTransform: 'none',
+        py: 1,
+        px: 2
+      }}
+    >
+      Add via file
+      <input 
+        type="file" 
+        accept=".xlsx, .xls" 
+        hidden 
+        onChange={handleteacherFileUpload} 
+      />
+    </Button>
+  </Stack>
+           
           </Box>
           
           <TableContainer component={Paper} sx={{ borderRadius: 2, overflow: 'hidden', mb: 3 }}>
@@ -483,46 +709,51 @@ const AdminDashboard = () => {
 
       {tabValue === 1 && (
         <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, pb: 0.3 }}>
-            <Typography variant="h5" fontWeight="bold">
-              Student Management
-            </Typography>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              startIcon={<AddIcon />}
-              onClick={() => setOpenStudentModal(true)}
-              sx={{ 
-                borderRadius: 2,
-                textTransform: 'none',
-                py: 1,
-                px: 2
-              }}
-            >
-              Add Student
-            </Button>
-            <Button 
-            variant="contained" 
-            color="primary" 
-            startIcon={<AddIcon />}
-            component="label"  // Enables file selection on button click
-            sx={{ 
-            borderRadius: 2,
-            textTransform: 'none',
-            py: 1,
-            px: 2
-            }}
-            >
-            Add via file
-            <input 
-            type="file" 
-            accept=".xlsx, .xls" 
-            hidden 
-            onChange={handleFileUpload} 
-            />
-            </Button>
+         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, pb: 0.3 }}>
+  <Typography variant="h5" fontWeight="bold">
+    Student Management
+  </Typography>
 
-          </Box>
+  {/* Buttons Wrapper */}
+  <Stack direction="row" spacing={1.5}>
+    <Button 
+      variant="contained" 
+      color="primary" 
+      startIcon={<AddIcon />}
+      onClick={() => setOpenStudentModal(true)}
+      sx={{ 
+        borderRadius: 2,
+        textTransform: 'none',
+        py: 1,
+        px: 2
+      }}
+    >
+      Add Student
+    </Button>
+
+    <Button 
+      variant="contained" 
+      color="primary" 
+      startIcon={<AddIcon />}
+      component="label"  
+      sx={{ 
+        borderRadius: 2,
+        textTransform: 'none',
+        py: 1,
+        px: 2
+      }}
+    >
+      Add via file
+      <input 
+        type="file" 
+        accept=".xlsx, .xls" 
+        hidden 
+        onChange={handleFileUpload} 
+      />
+    </Button>
+  </Stack>
+</Box>
+
 
           <Typography>Select Class:</Typography>
           <Stack direction="row" spacing={2} sx={{ mt: 2, mb: 3 }}>
@@ -588,6 +819,7 @@ const AdminDashboard = () => {
             <Typography variant="h5" fontWeight="bold">
               Scholarship Management
             </Typography>
+            <Stack direction="row" spacing={1.5}>
             <Button 
               variant="contained" 
               color="primary" 
@@ -602,6 +834,28 @@ const AdminDashboard = () => {
             >
               Add Scholarship
             </Button>
+
+    <Button 
+      variant="contained" 
+      color="primary" 
+      startIcon={<AddIcon />}
+      component="label"  
+      sx={{ 
+        borderRadius: 2,
+        textTransform: 'none',
+        py: 1,
+        px: 2
+      }}
+    >
+      Add via file
+      <input 
+        type="file" 
+        accept=".xlsx, .xls" 
+        hidden 
+        onChange={handleScholarshipFileUpload} 
+      />
+    </Button>
+  </Stack>
           </Box>
           
           <TableContainer component={Paper} sx={{ borderRadius: 2, overflow: 'hidden', mb: 3 }}>

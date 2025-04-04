@@ -258,51 +258,64 @@ export default function TeacherDashboard() {
     setGeneratingReport(true);
     
     try {
-      // Determine which data to include based on active tab
-      let reportData;
-      let fileName;
-      
-      if (activeTab === 0) {
-        // For Activity Points tab
-        reportData = students.map((student, index) => ({
-          'SL No': index + 1,
-          'KTU ID': student.formattedId || `KTU${String(student.id).padStart(4, '0')}`,
-          'Name': student.name,
-          'Total Activity Points': student.total_activity_point || 0,
-          'Pending Certificates': student.unverifiedCertificates || 0,
-          'Email': student.email || '',
-          'Phone': student.phone || ''
-        }));
-        fileName = `${currentClass.class_name}_ActivityPoints_${new Date().toISOString().split('T')[0]}.xlsx`;
-      } else {
-        // For Scholarships tab
-        reportData = students.map((student, index) => ({
-          'SL No': index + 1,
-          'KTU ID': student.formattedId || `KTU${String(student.id).padStart(4, '0')}`,
-          'Name': student.name,
-          'Pending Applications': student.newApplications || 0,
-          'Email': student.email || '',
-          'Phone': student.phone || ''
-        }));
-        fileName = `${currentClass.class_name}_Scholarships_${new Date().toISOString().split('T')[0]}.xlsx`;
-      }
-      
-      // Create workbook and worksheet
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(reportData);
-      
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, currentClass.class_name);
-      
-      // Save the workbook
-      XLSX.writeFile(wb, fileName);
+        let reportData;
+        let fileName;
+
+        if (activeTab === 0) {
+            // Create a mapping of student IDs to their certificate types
+            const studentCertificatesMap = {};
+
+            students.forEach(student => {
+                studentCertificatesMap[student.id] = student.certificates 
+                    ? student.certificates.map(cert => cert.Type).join(', ') 
+                    : 'N/A';
+            });
+
+            // Generate report data for Activity Points
+            reportData = students.map((student, index) => ({
+                'SL No': index + 1,
+                'KTU ID': student.formattedId || `KTU${String(student.id).padStart(4, '0')}`,
+                'Name': student.name,
+                'Total Activity Points': student.total_activity_point || 0,
+                'Pending Certificates': student.unverifiedCertificates || 0,
+                'Type': studentCertificatesMap[student.id] || 'N/A',  // Fetch type based on student_id
+                'Email': student.email || '',
+                'Phone': student.phone || ''
+            }));
+
+            fileName = `${currentClass.class_name}_ActivityPoints_${new Date().toISOString().split('T')[0]}.xlsx`;
+        } else {
+            // Generate report data for Scholarships
+            reportData = students.map((student, index) => ({
+                'SL No': index + 1,
+                'KTU ID': student.formattedId || `KTU${String(student.id).padStart(4, '0')}`,
+                'Name': student.name,
+                'Pending Applications': student.newApplications || 0,
+                'Email': student.email || '',
+                'Phone': student.phone || ''
+            }));
+
+            fileName = `${currentClass.class_name}_Scholarships_${new Date().toISOString().split('T')[0]}.xlsx`;
+        }
+        
+        // Create workbook and worksheet
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(reportData);
+        
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, currentClass.class_name);
+        
+        // Save the workbook
+        XLSX.writeFile(wb, fileName);
     } catch (err) {
-      console.error("Error generating Excel report:", err);
-      alert("Failed to generate report. Please try again.");
+        console.error("Error generating Excel report:", err);
+        alert("Failed to generate report. Please try again.");
     } finally {
-      setGeneratingReport(false);
+        setGeneratingReport(false);
     }
-  };
+};
+
+
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>

@@ -175,29 +175,29 @@ export default function TeacherDashboard() {
       setSelectedStudent(null);
     }, 300);
   };
-   const handleFileUpload = (event) => {
-    const uploadedFile = event.target.files[0];
-    setFile(uploadedFile);
+  //  const handleFileUpload = (event) => {
+  //   const uploadedFile = event.target.files[0];
+  //   setFile(uploadedFile);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const binaryStr = e.target.result;
-      const workbook = XLSX.read(binaryStr, { type: 'binary' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(sheet);
+  //   const reader = new FileReader();
+  //   reader.onload = async (e) => {
+  //     const binaryStr = e.target.result;
+  //     const workbook = XLSX.read(binaryStr, { type: 'binary' });
+  //     const sheetName = workbook.SheetNames[0];
+  //     const sheet = workbook.Sheets[sheetName];
+  //     const data = XLSX.utils.sheet_to_json(sheet);
 
-      // Insert data into Supabase
-      const { error } = await supabase.from('student').insert(data);
-      if (error) {
-        console.error("Error uploading file:", error);
-      } else {
-        fetchStudents(); // Refresh list after upload
-        onClose();
-      }
-    };
-    reader.readAsBinaryString(uploadedFile);
-  };
+  //     // Insert data into Supabase
+  //     const { error } = await supabase.from('student').insert(data);
+  //     if (error) {
+  //       console.error("Error uploading file:", error);
+  //     } else {
+  //       fetchStudents(); // Refresh list after upload
+  //       onClose();
+  //     }
+  //   };
+  //   reader.readAsBinaryString(uploadedFile);
+  // };
 
   // Class verification function
   const verifyClassId = async () => {

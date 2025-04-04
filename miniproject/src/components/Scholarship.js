@@ -361,7 +361,9 @@ const ScholarshipPage = () => {
             <Home className="menu-icon" color="white" />
           </a>
           <div className="profile-brief">
-            <div className="avatar"></div>
+          <div className="avatar">
+            <img src="/assets/l2.png" alt="User Avatar" className="avatar-img" />
+          </div>
           </div>
           <nav className="nav-menu">
             <Link to="/Dashboard" className="nav-item">
